@@ -18,21 +18,8 @@ class MaximoAutomation():
 	"""
 
 	debug = False
-
-	""" 
-		Start Center -> #menu0_changeapp_startcntr_a
-
-		Change > Changes (MP) -> #menu0_CHANGE_MODULE_sub_changeapp_MP2CHANGE_a
-		Change > Activities and Tasks (MP) -> #menu0_CHANGE_MODULE_sub_changeapp_MP2ACTIV_a
-
-	"""
-	sections_cache = {
-		# "changes": "#menu0_CHANGE_MODULE_sub_changeapp_MP2CHANGE_a",
-		# "tasks": " #menu0_CHANGE_MODULE_sub_changeapp_MP2ACTIV_a",
-		# "problems": " #menu0_SD_MODULE_sub_changeapp_MP2PROBLEM_a",
-		# "incidents": " #menu0_SD_MODULE_sub_changeapp_MP2INC_a",
-		# "service_requests": " #menu0_SD_MODULE_sub_changeapp_MP2SR_a",
-	}
+	
+	sections_cache = {}
 	
 	def __init__(self, config = {}):
 		if "debug" in config:
@@ -62,7 +49,7 @@ class MaximoAutomation():
 	def login (self, username, password):
 		"""Logs the user into Maximo, using the provided credentials"""
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "j_username")))
-		
+
 		self.driver.find_element_by_id("j_username").send_keys(username)
 		self.driver.find_element_by_id("j_password").send_keys(password)
 
