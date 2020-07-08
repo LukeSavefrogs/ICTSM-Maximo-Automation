@@ -33,7 +33,7 @@ class MaximoAutomation():
 			if self.debug: print("[DEBUG] - Debug mode enabled")
 		
 		if "headless" in config:
-			self.headless = bool(config["debug"])
+			self.headless = bool(config["headless"])
 			if self.headless: chrome_flags.append("--headless")
 
 		chrome_flags = chrome_flags + [
@@ -80,9 +80,13 @@ class MaximoAutomation():
 
 	def logout (self):
 		""" Performs the logout """
-		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "titlebar_hyperlink_9-lbsignout")))
-		self.driver.find_element_by_id("titlebar_hyperlink_9-lbsignout").click()
-		if self.debug: print("[DEBUG] - Clicked on the logout button")
+		""" 
+			WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "titlebar_hyperlink_9-lbsignout")))
+			self.driver.find_element_by_id("titlebar_hyperlink_9-lbsignout").click()
+			if self.debug: print("[DEBUG] - Clicked on the logout button") 
+		"""
+		# Maximo has a special constant (LOGOUTURL) containing the direct url that can be used to logout
+		self.driver.execute_script("window.location = LOGOUTURL")
 		
 		# Wait until have finished logging out and the confirm button is present
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#returnFrm > button#submit")))
@@ -111,21 +115,31 @@ class MaximoAutomation():
 		WebDriverWait(self.driver, 30).until(EC.invisibility_of_element((By.ID, "wait")))
 		
 
+
 	def goto_section (self, section_name):
-		""" Goes to the one of the sections you can find under the GoTo Menu in Maximo (Ex. changes, problems...) """
-		self.driver.find_element_by_id("titlebar-tb_gotoButton").click()
-		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#menu0_changeapp_startcntr_a")))
-		
+		""" 
+			Goes to the one of the sections you can find under the GoTo Menu in Maximo (Ex. changes, problems...) 
+		"""
+	
 		""" Populate the cache ONLY the first time, so that it speeds up on the next calls """
 		if len(self.sections_cache) == 0:
 			if self.debug: print("[DEBUG] - Sections cache is empty. Analyzing DOM...")
+			
+			self.driver.find_element_by_id("titlebar-tb_gotoButton").click()
+			WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#menu0_changeapp_startcntr_a")))
+
 
 			for section in self.driver.find_elements_by_css_selector("#menu0 li:not(.submenu) > a"): 
 				text = section.get_attribute("innerText")
 				text = re.sub(r'\(MP\)', '', text)
 				text = re.sub(r'\s+', ' ', text).strip().lower()
 				s_id = section.get_attribute("id") 
-				self.sections_cache[text] = f"#{s_id}"
+				s_href = section.get_attribute("href") 
+
+				self.sections_cache[text] = {
+					"id": f"#{s_id}",
+					"href": re.sub(r'javascript:\s+', '', s_href)
+				}
 
 		if self.debug:
 			print("[DEBUG] - Pretty printing sections cached:")
@@ -133,8 +147,7 @@ class MaximoAutomation():
 
 		section_name_parsed = section_name.lower().replace("(MP)", "")
 		if section_name_parsed in self.sections_cache:
-			section_element = self.driver.find_element_by_css_selector(self.sections_cache[section_name_parsed])
-			self.driver.execute_script("arguments[0].click();", section_element)
+			self.driver.execute_script(self.sections_cache[section_name_parsed]["href"])
 			if self.debug: print("[DEBUG] - Clicked on " + section_name)
 
 		else:
@@ -142,6 +155,21 @@ class MaximoAutomation():
 
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "quicksearch")))
 		self.waitUntilReady()
+
+	def getMaximoInternalVariable(self, variableName):
+		return self.driver.execute_script(f"return {variableName};")
+
+	def getCurrentSection(self):
+		"""
+		Gets the name of the current section:
+			- mp2activ		= Activities and Tasks(MP)
+			- mp2change		= Changes (MP)
+			- mp2inc		= Incidents (MP)
+		"""
+		return { 
+			"target_id": 	self.getMaximoInternalVariable("APPTARGET").lower(),
+			"app_label":	self.getMaximoInternalVariable("APP_KEY_LABEL")
+		}
 
 	def getAvailableFiltersInListView (self):
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "m6a7dfd2f_tbod_ttrow-tr")))
@@ -159,7 +187,7 @@ class MaximoAutomation():
 
 			filter_label_id = cell.get_attribute("id")
 			filter_id = ""
-			filter_column_number = self.getColumnFromFieldId(filter_label_id)
+			filter_column_number = self.getColumnNumberFromId(filter_label_id)
 
 			try:
 				filter_id = self.driver.find_element_by_css_selector("[headers='" + filter_label_id + "'] > input").get_attribute("id")
@@ -169,7 +197,7 @@ class MaximoAutomation():
 			filters_found[filter_label] = { "element_id": filter_id, "sorting": filter_sort, "column_number": filter_column_number }
 
 
-		if self.debug: print("[DEBUG] - Pretty printing filters found:\n" + json.dumps(filters_found, sort_keys=True, indent=4))
+		# if self.debug: print("[DEBUG] - Pretty printing filters found:\n" + json.dumps(filters_found, sort_keys=True, indent=4))
 
 		return filters_found
 
@@ -206,13 +234,13 @@ class MaximoAutomation():
 		self.waitUntilReady()
 
 
-	def quickSearch(self, id):
+	def quickSearch(self, resource_id):
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "quicksearch")))
-		self.driver.find_element_by_id("quicksearch").send_keys(id.strip())
+		self.driver.find_element_by_id("quicksearch").send_keys(resource_id.strip())
 		
 		self.driver.find_element_by_id("quicksearchQSImage").click()
 
-		if self.debug: print(f"[DEBUG] - Searching for id: {id}")
+		if self.debug: print(f"[DEBUG] - Searching for id: {resource_id}")
 		
 		self.waitUntilReady()
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "m397b0593-tabs_middle")))
@@ -225,8 +253,17 @@ class MaximoAutomation():
 		return self.driver
 	
 
-	def getColumnFromFieldId(self, id):
-		regex_result = re.search("\[C:([0-9]+)\]", id)
+	def getColumnNumberFromId(self, row_id):
+		"""
+		Given an id of a table row/field, returns the column number 
+
+		Args:
+			row_id ([type]): [description]
+
+		Returns:
+			[type]: [description]
+		"""
+		regex_result = re.search("\[C:([0-9]+)\]", row_id)
 		if regex_result: 
 			return regex_result.groups(1)[0].strip()
 		else:
@@ -246,8 +283,8 @@ class MaximoAutomation():
 			field = {
 				"element_id": column.get_attribute("id").strip(),
 				"value": column.text.replace("\n", "").strip(),
-				"column_number": self.getColumnFromFieldId(column.get_attribute("id")),
-				"filter_type": ""
+				"column_number": self.getColumnNumberFromId(column.get_attribute("id")),
+				"column_name": ""
 			}
 
 
@@ -255,35 +292,57 @@ class MaximoAutomation():
 			# Find the filter column name associated to the current field
 			for key, values in filters.items():
 				if values["column_number"] == field['column_number']:
-					field['filter_type'] = key.strip()
+					field['column_name'] = key.strip()
 					break
 
 			# Add the current field to the list of fields ONLY if it has both a valid column name and a valid value
-			if field['filter_type'] != "" and field['value'] != "":
-				current_row[field['filter_type']] = field
+			if field['column_name'] != "" and field['value'] != "":
+				current_row[field['column_name']] = field
 			
-		# if self.debug: print("Dettagli record:\n" + json.dumps(current_row, indent=4))
-
 		return current_row
 
 
-	def getAllRecordsFromTable (self, start=0, end=-1):
-		table_rows = self.driver.find_elements_by_css_selector("#m6a7dfd2f_tbod-tbd tr.tablerow[id*='tbod_tdrow-tr[R:']")
+	def getAllRecordsFromTable (self):
+		"""
+		In a List View (for example 'Changes open owned by my groups') analyzes the current table and returns all the rows details. 
+		If there are more pages, goes through all them
 
-		if self.debug: print("[DEBUG] - Total table rows: " + str(len(table_rows)))
-
-		filters = self.getAvailableFiltersInListView()
-
+		Returns:
+			list: List of Dictionaries of all the table rows 
+		"""
 		record_list = []
 
-		for index in range(len(table_rows)): 
-			record_list.append(
-				{
-					"data": self.getRecordDetailsFromTable(table_rows[index], filters),
-					"element_id": table_rows[index].get_attribute("id")
-				}
-			)
+		while True:
+			counter = self.driver.find_element_by_id("m6a7dfd2f-lb3").get_attribute("innerText")
 
-		if self.debug: print("Dettagli record:\n" + json.dumps(record_list, indent=4))
+			table_rows = self.driver.find_elements_by_css_selector("#m6a7dfd2f_tbod-tbd tr.tablerow[id*='tbod_tdrow-tr[R:']")
+
+			if self.debug: print(f"[DEBUG] - [Paging] Table paging: {counter}")
+
+			filters = self.getAvailableFiltersInListView()
+
+			
+			for index, row in enumerate(table_rows): 
+				record_list.append(
+					{
+						"data": self.getRecordDetailsFromTable(row, filters),
+						"element_id": row.get_attribute("id")
+					}
+				)
+				if self.debug: print("[DEBUG] - \tRow n°" + str(index + 1))
+			
+
+			next_page_available = self.driver.find_element_by_id("m6a7dfd2f-ti7_img").get_attribute("source") == "tablebtn_next_on.gif"
+
+			if not next_page_available: break
+
+			if self.debug: print("[DEBUG] - [Paging] Changing page")
+			self.driver.find_element_by_id("m6a7dfd2f-ti7_img").click()
+			self.waitUntilReady()
+			
+
 
 		return record_list
+
+	def getRowNumberFromFieldId(self, row_id):
+		self.driver.execute_script("return getRowFromId(arguments[0])", row_id)
