@@ -30,8 +30,14 @@ class MaximoAutomation():
 
 		if "debug" in config:
 			self.debug = bool(config["debug"])
-			if self.debug: print("[DEBUG] - Debug mode enabled")
-		
+
+			# https://peter.sh/experiments/chromium-command-line-switches/
+			if self.debug: 
+				print("[DEBUG] - Debug mode enabled")
+				chrome_flags.append("--log-level=0") # Prints starting from DEBUG messages
+			else:
+				chrome_flags.append("--log-level=3") # Prints starting from CRITICAL messages
+
 		if "headless" in config:
 			self.headless = bool(config["headless"])
 			if self.headless: chrome_flags.append("--headless")
@@ -235,7 +241,8 @@ class MaximoAutomation():
 
 
 	def quickSearch(self, resource_id):
-		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "quicksearch")))
+		self.waitForInputEditable("#quicksearch")
+		self.driver.find_element_by_id("quicksearch").clear()
 		self.driver.find_element_by_id("quicksearch").send_keys(resource_id.strip())
 		
 		self.driver.find_element_by_id("quicksearchQSImage").click()
@@ -243,6 +250,9 @@ class MaximoAutomation():
 		if self.debug: print(f"[DEBUG] - Searching for id: {resource_id}")
 		
 		self.waitUntilReady()
+		if self.driver.find_elements_by_id("m88dbf6ce-pb") and "No records were found that match the specified query" in self.driver.find_element_by_id("mb_msg").get_attribute("innerText"):
+			print(f"[ERROR] - Cannot find id: {resource_id}")
+		
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "m397b0593-tabs_middle")))
 
 
@@ -270,7 +280,7 @@ class MaximoAutomation():
 			return None
 		pass
 
-	def getRecordDetailsFromTable (self, record: selenium.webdriver.remote.webelement.WebElement, filters):
+	def getRecordDetailsFromTable (self, record: selenium.webdriver.remote.webelement.WebElement, filters: dict):
 		"""
 			When inside a Section with a Table list (ex. when inside the list of Changes open owned by my groups)
 				returns
@@ -346,3 +356,31 @@ class MaximoAutomation():
 
 	def getRowNumberFromFieldId(self, row_id):
 		self.driver.execute_script("return getRowFromId(arguments[0])", row_id)
+
+	def waitForInputEditable(self, element_selector: str, timeout: int = 30):
+		"""
+		Waits for an input/textarea to be editable
+
+		Args:
+			element_selector (str): The CSS element selector
+			timeout (int, optional): The timeout after which an error is thrown. Defaults to 30.
+		"""
+		# Waits until Maximo is ready (input wouldn't be ready anyway)
+		#
+		self.waitUntilReady()
+
+		# Waits for the input to be visible
+		# 
+		# From the Docs:
+		#		Visibility means that the element is not only displayed but also has a height and width that is greater than 0
+		#
+		WebDriverWait(self.driver, timeout).until(
+			EC.visibility_of_element_located((By.CSS_SELECTOR, element_selector))
+		)
+		
+		# Waits for the input not to be in readonly mode
+		WebDriverWait(self.driver, timeout).until(
+			lambda s:"fld_ro" not in s.find_element_by_css_selector(element_selector).get_attribute('class').split()
+		)
+
+		return self.driver.find_element_by_css_selector(element_selector)

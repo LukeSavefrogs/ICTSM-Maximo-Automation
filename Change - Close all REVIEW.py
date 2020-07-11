@@ -5,6 +5,7 @@ from selenium.webdriver.common.keys import Keys
 
 import maximo_gui_connector as MGC
 import json
+import time
 
 def getCredentials ():	
 	"""
@@ -49,6 +50,8 @@ if __name__ == "__main__":
 			browser.find_element_by_link_text("Details & Closure").click()
 			maximo.waitUntilReady()
 
+			maximo.waitForInputEditable("#m8e32699b-tb")
+
 			browser.find_element_by_id("m8e32699b-tb").send_keys("COMPLETE")
 			browser.find_element_by_id("m8e32699b-tb").send_keys(Keys.TAB)
 			
@@ -58,30 +61,33 @@ if __name__ == "__main__":
 			browser.find_element_by_link_text("Change Status/Group/Owner (MP)").click()
 			maximo.waitUntilReady()
 
+			maximo.waitForInputEditable("#m67b8314e-tb")
+
 			# Set the desired status
 			browser.find_element_by_id("m67b8314e-tb").send_keys("CLOSE")
 			browser.find_element_by_id("m67b8314e-tb").send_keys(Keys.TAB)
 			maximo.waitUntilReady()
 
+			time.sleep(0.5)
+
 			# Click on "Route Workflow" button
 			browser.find_element_by_id("m24bf0ed1-pb").click()
 			maximo.waitUntilReady()
 			
+			if browser.find_elements_by_id("m88dbf6ce-pb") and "Errors exist in the application that prevent this action from being performed" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
+				# browser.find_elements_by_id("m88dbf6ce-pb").click()
+				break
+			
+			time.sleep(0.5)
+
 			# Click on "Close Window" button to close the dialog
 			browser.find_element_by_id("mbdb65f6b-pb").click()
 			maximo.waitUntilReady()
 
-			print(f"[DEBUG] - Chiuso change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
+			print(f"[INFO] - Chiuso change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")\n")
 			# break
 
 
-	"""
-	[DEBUG] - Searching for id: CH1675627
-	[0708/220020.738:INFO:CONSOLE(4595)] "tamatch=COMPLETE", source: https://ism.italycsc.com/UI/maximo/webclient/javascript/tpae-20181021-1152/library.js (4595)
-	Message: element click intercepted: Element <button ctype="pushbutton" type="button" control="true" id="mbdb65f6b-pb" class="text pb" style="">...</button> is not clickable at point (690, 462). Other element would receive the click: <div id="msgbox-dialog_inner_dialogwait" class="wait_modal" style="cursor: wait; height: 600px; width: 810px; position: absolute; left: 0px; top: 0px; display: block;"></div>
-	(Session info: headless chrome=83.0.4103.116)
-	"""
-		
 		if maximo.debug: input("Premi per eseguire il logout")
 
 		maximo.logout()
