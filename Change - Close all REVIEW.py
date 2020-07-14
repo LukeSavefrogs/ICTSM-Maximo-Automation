@@ -3,7 +3,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-import maximo_gui_connector as MGC
+from maximo_gui_connector import MaximoAutomation
+from maximo_gui_connector import MaximoWorkflowError
 import json
 import time
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
 		# Get credentials
 		USERNAME, PASSWORD = getCredentials()
 
-		maximo = MGC.MaximoAutomation({ "debug": True, "headless": True })
+		maximo = MaximoAutomation({ "debug": True, "headless": False })
 		maximo.login(USERNAME, PASSWORD)
 
 		browser = maximo.driver
@@ -57,32 +58,25 @@ if __name__ == "__main__":
 			
 			maximo.waitUntilReady()
 
-			# Click on the "Change Status" button
-			browser.find_element_by_link_text("Change Status/Group/Owner (MP)").click()
-			maximo.waitUntilReady()
-
-			maximo.waitForInputEditable("#m67b8314e-tb")
-
-			# Set the desired status
-			browser.find_element_by_id("m67b8314e-tb").send_keys("CLOSE")
-			browser.find_element_by_id("m67b8314e-tb").send_keys(Keys.TAB)
-			maximo.waitUntilReady()
-
+			# Click on the "Change Status" button and set the new Status
+			maximo.routeWorkflowDialog.openDialog()
+			maximo.routeWorkflowDialog.setStatus("CLOSE")
+			
 			time.sleep(0.5)
-
+			
 			# Click on "Route Workflow" button
-			browser.find_element_by_id("m24bf0ed1-pb").click()
-			maximo.waitUntilReady()
-			
-			if browser.find_elements_by_id("m88dbf6ce-pb") and "Errors exist in the application that prevent this action from being performed" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
-				# browser.find_elements_by_id("m88dbf6ce-pb").click()
-				break
-			
+			try:
+				maximo.routeWorkflowDialog.clickRouteWorkflow()
+
+			except MaximoWorkflowError as exception:
+				print("Error while clicking on the 'Route Workflow' button:\n" + exception)
+
+				continue
+
+
 			time.sleep(0.5)
 
-			# Click on "Close Window" button to close the dialog
-			browser.find_element_by_id("mbdb65f6b-pb").click()
-			maximo.waitUntilReady()
+			maximo.routeWorkflowDialog.closeDialog()
 
 			print(f"[INFO] - Chiuso change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")\n")
 			# break

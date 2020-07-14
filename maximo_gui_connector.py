@@ -1,3 +1,6 @@
+"""
+	Contains all the logic behind Maximo Automation
+"""
 import selenium
 import time
 from selenium import webdriver
@@ -15,6 +18,11 @@ from selenium.webdriver.remote.remote_connection import LOGGER
 # Just for Debug
 import json
 
+# ----------------------------------------------------------------------------------------------------
+# 
+#											Main Class 
+# 
+# ----------------------------------------------------------------------------------------------------
 class MaximoAutomation():
 	"""
 		Abstraction layer over IBM Maximo Asset Management UI
@@ -31,10 +39,10 @@ class MaximoAutomation():
 		if "debug" in config:
 			self.debug = bool(config["debug"])
 
-			# https://peter.sh/experiments/chromium-command-line-switches/
+			# https://peter.sh/experiments/chromium-command-line-switches/#log-level
 			if self.debug: 
 				print("[DEBUG] - Debug mode enabled")
-				chrome_flags.append("--log-level=0") # Prints starting from DEBUG messages
+				chrome_flags.append("--log-level=1") # Prints starting from DEBUG messages
 			else:
 				chrome_flags.append("--log-level=3") # Prints starting from CRITICAL messages
 
@@ -60,6 +68,8 @@ class MaximoAutomation():
 
 		self.driver = webdriver.Chrome( options=chrome_options )
 		self.driver.get("https://ism.italycsc.com/UI/maximo/webclient/login/login.jsp?appservauth=true")
+
+		self.routeWorkflowDialog = RouteWorkflowInterface(self)
 
 		
 
@@ -120,6 +130,8 @@ class MaximoAutomation():
 		""" Stops the execution of the script until Maximo is ready """
 		WebDriverWait(self.driver, 30).until(EC.invisibility_of_element((By.ID, "wait")))
 		
+
+
 
 
 	def goto_section (self, section_name):
@@ -195,10 +207,11 @@ class MaximoAutomation():
 			filter_id = ""
 			filter_column_number = self.getColumnNumberFromId(filter_label_id)
 
+			input_selector = "[headers='" + filter_label_id + "'] > input"
 			try:
-				filter_id = self.driver.find_element_by_css_selector("[headers='" + filter_label_id + "'] > input").get_attribute("id")
-			except Exception as identifier:
-				print("Errore - Nome colonna: " + filter_label + "\n" + str(identifier))
+				filter_id = self.driver.find_element_by_css_selector(input_selector).get_attribute("id")
+			except Exception:
+				print(f"[WARNING] - Couldn't find filter input for column {filter_label} ({input_selector})")
 
 			filters_found[filter_label] = { "element_id": filter_id, "sorting": filter_sort, "column_number": filter_column_number }
 
@@ -206,7 +219,6 @@ class MaximoAutomation():
 		# if self.debug: print("[DEBUG] - Pretty printing filters found:\n" + json.dumps(filters_found, sort_keys=True, indent=4))
 
 		return filters_found
-
 
 	def setFilters (self, filter_config):
 		""" Change filters for the change list """
@@ -239,8 +251,8 @@ class MaximoAutomation():
 		self.driver.find_element_by_id("m6a7dfd2f-ti2_img").click()
 		self.waitUntilReady()
 
-
 	def quickSearch(self, resource_id):
+		self.waitUntilReady()
 		self.waitForInputEditable("#quicksearch")
 		self.driver.find_element_by_id("quicksearch").clear()
 		self.driver.find_element_by_id("quicksearch").send_keys(resource_id.strip())
@@ -255,13 +267,11 @@ class MaximoAutomation():
 		
 		WebDriverWait(self.driver, 30).until(EC.presence_of_element_located((By.ID, "m397b0593-tabs_middle")))
 
-
 	def getBrowserInstance(self):
 		"""
 			Returns the Selenium Webdriver instance needed to perform operations in the current 
 		"""
 		return self.driver
-	
 
 	def getColumnNumberFromId(self, row_id):
 		"""
@@ -311,7 +321,6 @@ class MaximoAutomation():
 			
 		return current_row
 
-
 	def getAllRecordsFromTable (self):
 		"""
 		In a List View (for example 'Changes open owned by my groups') analyzes the current table and returns all the rows details. 
@@ -354,8 +363,16 @@ class MaximoAutomation():
 
 		return record_list
 
-	def getRowNumberFromFieldId(self, row_id):
-		self.driver.execute_script("return getRowFromId(arguments[0])", row_id)
+	def getRowNumberFromFieldId(self, row_id: str):
+		"""Given a field from a table row (ex. Changes) or even a row, returns the row number
+
+		Args:
+			row_id (str): The id of the element you want to find the row number
+
+		Returns:
+			str: The row number
+		"""
+		return str(self.driver.execute_script("return getRowFromId(arguments[0])", row_id))
 
 	def waitForInputEditable(self, element_selector: str, timeout: int = 30):
 		"""
@@ -384,3 +401,93 @@ class MaximoAutomation():
 		)
 
 		return self.driver.find_element_by_css_selector(element_selector)
+
+	def clickRouteWorkflow(self):
+		self.driver.find_element_by_id("ROUTEWF__-tbb_anchor").click()
+		self.waitUntilReady()
+
+
+
+# ----------------------------------------------------------------------------------------------------
+# 
+#											Interfaces 
+# 
+# ----------------------------------------------------------------------------------------------------
+class RouteWorkflowInterface():
+	def __init__(self, maximo):
+		self.__maximo = maximo
+
+	def openDialog(self):
+		"""Click on the "Change Status" button
+
+		Raises:
+			MaximoError: If cannot find the button
+		"""
+		if not self.__maximo.driver.find_elements_by_link_text("Change Status/Group/Owner (MP)"):
+			print("[FATAL] - No 'Change Status/Group/Owner (MP)' button was found")
+
+			raise MaximoError("No 'Change Status/Group/Owner (MP)' button was found")
+		self.__maximo.driver.find_element_by_link_text("Change Status/Group/Owner (MP)").click()
+		self.__maximo.waitUntilReady()
+
+	def closeDialog(self):
+		"""Click on "Close Window" button to close the dialog"""
+		self.__maximo.driver.find_element_by_id("mbdb65f6b-pb").click()
+		self.__maximo.waitUntilReady()
+
+	def getStatus(self):
+		"""Get the current Status"""
+		return self.__maximo.driver.find_element_by_id("mfeb160f4-tb").get_attribute("value")
+		
+	def setStatus(self, new_status: str):
+		"""Sets a new status for the current record
+
+		Args:
+			new_status (str): The new status 
+		"""
+		self.__maximo.waitForInputEditable("#m67b8314e-tb")
+		self.__maximo.driver.find_element_by_id("m67b8314e-tb").send_keys(new_status)
+		self.__maximo.driver.find_element_by_id("m67b8314e-tb").send_keys(Keys.TAB)
+
+		self.__maximo.waitUntilReady()
+
+	def clickRouteWorkflow(self):
+		self.__maximo.driver.find_element_by_id("m24bf0ed1-pb").click()
+		self.__maximo.waitUntilReady()
+	
+		if self.__maximo.driver.find_elements_by_id("m88dbf6ce-pb"):
+			msg_box_text = self.__maximo.driver.find_element_by_id("mb_msg").get_attribute("innerText").strip()
+
+			if "Errors exist in the application that prevent this action from being performed" in msg_box_text:
+				# browser.find_elements_by_id("m88dbf6ce-pb").click()
+				print(f"[ERROR] - Errors exist in the application. Your changes have not been saved\n")
+
+				raise MaximoWorkflowError("Errors exist in the application. Your changes have not been saved")
+
+			if "has been updated by another user. Your changes have not been saved" in msg_box_text:
+				# browser.find_elements_by_id("m88dbf6ce-pb").click()
+				print(f"[ERROR] - Record have been changed by another user/instance. Your changes have not been saved\n")
+				
+				raise MaximoWorkflowError("Errors exist in the application. Your changes have not been saved")
+		
+
+
+
+# ----------------------------------------------------------------------------------------------------
+# 
+#											Exceptions 
+# 
+# ----------------------------------------------------------------------------------------------------
+# 
+# Source: 
+# 	https://stackoverflow.com/a/60465422/8965861
+#
+class MaximoError(Exception):
+    """A base class for Maximo exceptions."""
+
+class MaximoWorkflowError(MaximoError):
+	"""Exception raised when something in Maximo Workflow fails"""
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args)
+		self.foo = kwargs.get('foo')

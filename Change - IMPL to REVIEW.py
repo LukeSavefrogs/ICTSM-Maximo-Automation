@@ -28,18 +28,22 @@ if __name__ == "__main__":
 		# Get credentials
 		USERNAME, PASSWORD = getCredentials()
 
-		maximo = MGC.MaximoAutomation({ "debug": True, "headless": False })
+		maximo = MGC.MaximoAutomation({ "debug": True, "headless": True })
 		maximo.login(USERNAME, PASSWORD)
 
 		browser = maximo.driver
 		changes = [
-			"CH1675059",
-			"CH1675082",
-			"CH1675212",
-			"CH1675215",
-			"CH1675624",
+			"CH1678913",
+			"CH1678915",
+			"CH1678919",
+			"CH1678917",
+			"CH1678910",
+			"CH1678906",
+			"CH1678900",
+			"CH1678794",
+			"CH1678800",
+			"CH1678786",
 		]
-		owner_user = "ITY9DN3D"
 
 		INPRG_MAX_RETRIES = 5
 
@@ -79,6 +83,12 @@ if __name__ == "__main__":
 
 				continue
 
+			if not browser.find_elements_by_id("m714e5172-tb"):
+				tasks = maximo.getAllRecordsFromTable()
+
+				print("[ERROR] - Found {n_tasks} tasks in total. The script, as of now, only accepts changes with a single task. Skipping...\n".format(n_tasks=len(tasks)))
+				continue
+
 			status = browser.find_element_by_id("m714e5172-tb").get_attribute('value').upper()
 			if status == "COMP":
 				print(f"[WARNING] - Task for change {change} is already in COMP status\n")
@@ -99,14 +109,13 @@ if __name__ == "__main__":
 					time.sleep(1)
 
 					browser.find_element_by_id("m944e29a9-tb").clear()
-					browser.find_element_by_id("m944e29a9-tb").send_keys(owner_user)
+					browser.find_element_by_id("m944e29a9-tb").send_keys(USERNAME)
 					browser.find_element_by_id("m944e29a9-tb").send_keys(Keys.TAB)
 					maximo.waitUntilReady()
 
 					time.sleep(1)
 
-					browser.find_element_by_id("ROUTEWF__-tbb_anchor").click()
-					maximo.waitUntilReady()
+					maximo.clickRouteWorkflow()
 
 					if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
 						browser.find_element_by_id("m15f1c9f0-pb").click()
@@ -140,8 +149,7 @@ if __name__ == "__main__":
 
 						if maximo.debug: print("[DEBUG] - \tClicking on Route WF")
 
-						browser.find_element_by_id("ROUTEWF__-tbb_anchor").click()
-						maximo.waitUntilReady()
+						maximo.clickRouteWorkflow()
 
 						time.sleep(3)
 

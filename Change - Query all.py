@@ -38,7 +38,9 @@ if __name__ == "__main__":
 		maximo.goto_section("Changes")
 
 		# Setup the filters to get ONLY the Changes owned by our group...
-		maximo.setFilters({ "status": "!=REVIEW", "owner group": "V-OST-IT-SYO-OPS-TRENITALIA_ICTSM" })
+		maximo.setFilters({ "status": "=REVIEW", "owner group": "V-OST-IT-SYO-OPS-TRENITALIA_ICTSM" })
+
+		print("[INFO] - Fetching the requested info...")
 
 		# Get all the records in the table (and all the pages available)
 		records = maximo.getAllRecordsFromTable()
@@ -55,7 +57,7 @@ if __name__ == "__main__":
 		]
 
 		print(json.dumps(changes, sort_keys=True, indent=4))
-
+		print("Total results: " + str(len(changes)))
 		if maximo.debug: input("Premi per eseguire il logout")
 
 		maximo.logout()
