@@ -64,11 +64,9 @@ if __name__ == "__main__":
 			time.sleep(1.5)
 
 
-			# Set Change number as Parent 
-			browser.find_element_by_id("m716fdd63-tb").clear()
-			browser.find_element_by_id("m716fdd63-tb").send_keys(change.strip())
-			browser.find_element_by_id("m716fdd63-tb").send_keys(Keys.TAB)
-			maximo.waitUntilReady()
+
+
+			maximo.setNamedInput({ "Parent:": change.strip() })
 
 			# Find with the provided filters
 			browser.find_element_by_id("maa8a5ebf-pb").click()

@@ -1,4 +1,5 @@
 __pycache__/*
 .vscode/*
-maximo_credentials.json
+maximo_credentials*.json
 debug.log
+*.log

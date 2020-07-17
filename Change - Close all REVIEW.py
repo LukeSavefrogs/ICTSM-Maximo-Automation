@@ -48,8 +48,7 @@ if __name__ == "__main__":
 			maximo.quickSearch(change)
 			
 			# Change to the "Details & Closure" page
-			browser.find_element_by_link_text("Details & Closure").click()
-			maximo.waitUntilReady()
+			maximo.goto_tab("Details & Closure")
 
 			maximo.waitForInputEditable("#m8e32699b-tb")
 
