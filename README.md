@@ -5,8 +5,6 @@
 	</p>
 </p>
 
-:bullettrain_side:  
-
 ## Elenco contenuti
 - [Elenco contenuti](#elenco-contenuti)
 - [:light_rail: Introduzione :bullettrain_side:](#-introduzione-)

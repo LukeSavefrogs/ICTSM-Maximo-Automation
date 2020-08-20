@@ -4,3 +4,4 @@ maximo_credentials*.json
 debug.log
 *.log
 build
+build_spec
