@@ -3,3 +3,4 @@ __pycache__/*
 maximo_credentials*.json
 debug.log
 *.log
+build
