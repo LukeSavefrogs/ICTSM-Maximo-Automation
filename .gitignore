@@ -5,3 +5,4 @@ debug.log
 *.log
 build
 build_spec
+src/__pycache__/*

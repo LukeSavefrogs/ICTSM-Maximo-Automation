@@ -11,6 +11,8 @@
 - [Elenco Automazioni](#elenco-automazioni)
 	- [Chiusura change in REVIEW](#chiusura-change-in-review)
 	- [Portare change da IMPL/INPRG a REVIEW](#portare-change-da-implinprg-a-review)
+- [Compilazione degli script](#compilazione-degli-script)
+		- [Istruzioni](#istruzioni)
 
 ## :light_rail: Introduzione :bullettrain_side:
 Questo progetto mira all'automatizzazione di specifiche procedure del **Team ICTSM Trenitalia**, in modo da velocizzarne l'esecuzione.
@@ -33,3 +35,19 @@ Di seguito un elenco delle automazioni disponibili al momento...
 
 ### Portare change da IMPL/INPRG a REVIEW
 :eyes:
+
+## Compilazione degli script
+La compilazione degli script è gestita a sua volta da [uno script](./startDeploy.py) che ha il duplice scopo di compilare e aggiornare la versione degli script.
+
+#### Istruzioni
+Usare lo script **`startDeploy.py`** passando come parametri i nomi dei file senza estensione:
+```bash
+python ./startDeploy.py 'Change - IMPL to REVIEW' 'Change - Close all REVIEW'
+```
+
+Se invece non vengono specificati dei file come parametri, verranno compilati di **default**:
+- [Change - IMPL to REVIEW](./src/Change%20-%20IMPL%20to%20REVIEW.py)
+- [Change - Close all REVIEW](./src/Change%20-%20Close%20all%20REVIEW.py)
+  
+
+![Script per compilazione](images/b26221ab3ec3295d09b691ac5a0651dc9fe1450ab36a6892afd448be6e3e165d.png)
