@@ -85,7 +85,7 @@ if __name__ == "__main__":
 			sys.exit(2)
 
 
-		maximo = MGC.MaximoAutomation({ "debug": False, "headless": False })
+		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
 		maximo.login(USERNAME, PASSWORD)
 
 		browser = maximo.driver
