@@ -46,6 +46,8 @@ def getChanges (fileName = 'changes.txt'):
 	return array_data
 
 if __name__ == "__main__":
+	checkUpdated(__file__)
+	
 	try:
 		logger = logging.getLogger(__name__)
 		logger2 = logging.getLogger()

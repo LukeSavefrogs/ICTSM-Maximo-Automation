@@ -14,6 +14,7 @@ import json
 import time
 
 import logging
+from updateutils import checkUpdated
 
 def getCredentials ():	
 	"""
@@ -30,6 +31,8 @@ def getCredentials ():
 
 
 if __name__ == "__main__":
+	checkUpdated(__file__)
+	
 	try:
 		logger = logging.getLogger(__name__)
 		logger2 = logging.getLogger()

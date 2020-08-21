@@ -122,7 +122,9 @@ def compileScript(fileName):
 			"--noconfirm",
 			"--log-level=WARN",
 			"--onefile",
+			# "--debug=all",
 			"--specpath=./build_spec",
+			f"--add-data=../src/{fileName}.version;.",
 			f"./src/{fileName}.py"
 		]
 
