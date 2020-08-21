@@ -14,6 +14,7 @@ import logging
 
 import os
 import sys
+from updateutils import checkUpdated
 
 
 def getCredentials ():	

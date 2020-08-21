@@ -72,6 +72,9 @@ def checkUpdated(fileName):
 		print(f"\tE' presente una nuova versione ({comp_vers}, attuale: {current_vers}).")
 		print(f"\tPer scaricarla vai al seguente link: {url_download}")
 		print("-----------------------------------")
+		print()
+
+		input("Premi un tasto per terminare")
 
 		sys.exit()
 
