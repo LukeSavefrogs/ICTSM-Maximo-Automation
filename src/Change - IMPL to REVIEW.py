@@ -81,7 +81,7 @@ if __name__ == "__main__":
 			CHANGES = getChanges()
 		except FileNotFoundError as e:
 			fileName = e
-			logger2.critical(f"File '{fileName}' mancante. Controllare e riavviare lo script... ")
+			logger.critical(f"File '{fileName}' mancante. Controllare e riavviare lo script... ")
 			sys.exit(2)
 
 
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 						maximo.clickRouteWorkflow()
 					except MaximoWorkflowError:
 						if taskRetryTimes > 5:
-							logger2.error(f"Cannot change Task from IMPL to INPRG")
+							logger.error(f"Cannot change Task from IMPL to INPRG")
 							break
 
 						logger2.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({taskRetryTimes} of 5 MAX)")
@@ -235,6 +235,7 @@ if __name__ == "__main__":
 		print()
 		input("Premi un tasto per terminare il programma")
 
+		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
 		try:
 			maximo.close()
 		except NameError as e:

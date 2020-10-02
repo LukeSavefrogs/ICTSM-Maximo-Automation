@@ -6,3 +6,5 @@ debug.log
 build
 build_spec
 src/__pycache__/*
+src/changes.txt
+dist/changes.txt

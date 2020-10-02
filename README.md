@@ -37,8 +37,8 @@ Di seguito un elenco delle automazioni disponibili al momento...
 
 ### :zap: Chiusura change in REVIEW
 #### Link
-- [**Download**](dist/Change%20-%20Close%20all%20REVIEW.exe)
-- [Codice sorgente](src/Change%20-%20Close%20all%20REVIEW.py)
+- [**Download**](./dist/Change%20-%20Close%20all%20REVIEW.exe?raw=true)
+- [Codice sorgente](./src/Change%20-%20Close%20all%20REVIEW.py)
 
 #### Istruzioni per l'utilizzo
 1. Se non presente, [crea il file per le **credenziali**](#salvare-le-credenziali)
@@ -50,23 +50,24 @@ Di seguito un elenco delle automazioni disponibili al momento...
 
 ### :zap: Portare change da IMPL/INPRG a REVIEW
 #### Link
-- [**Download**](dist/Change%20-%20IMPL%20to%20REVIEW.exe)
-- [Codice sorgente](src/Change%20-%20IMPL%20to%20REVIEW.py)
+- [**Download**](./dist/Change%20-%20IMPL%20to%20REVIEW.exe?raw=true)
+- [Codice sorgente](./src/Change%20-%20IMPL%20to%20REVIEW.py)
 
 #### Istruzioni per l'utilizzo
 1. Se non presente, [crea il file per le **credenziali**](#salvare-le-credenziali)
 2. **Crea un file** chiamato `changes.txt` e inserisci al suo interno tutti i change su linee diverse. Es.
 	```
-	CHXXXXXXX
-	CHYYYYYYY
-
-	CHZZZZZZZ
-	# Questa riga è un commento e in quanto tale verrà saltato
 	CHAAAAAAA
-
-	# Puoi usare i commenti per qualsiasi cosa vuoi... Ad esempio chissà a chi applaudiva Battman? :confused:
 	CHBBBBBBB
+
 	CHCCCCCCC
+	# Questa riga è un commento e in quanto tale verrà saltato
+	CHXXXXXXX
+
+	# Puoi usare i commenti per qualsiasi cosa vuoi..
+	# 	Ad esempio: "Chissà a chi applaudiva Battman?". Badum Tsss...
+	CHYYYYYYY
+	CHZZZZZZZ
 	```
 	> ### Keep calm :)
 	> Le linee lasciate **vuote** o **precedute** da un <kbd>#</kbd> verranno **ignorate**

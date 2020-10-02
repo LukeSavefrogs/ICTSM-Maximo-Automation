@@ -84,6 +84,8 @@ if __name__ == "__main__":
 		changes = [ record["data"]["change"]["value"] for record in records ]
 
 		for index, change in enumerate(changes):
+			logger.info(f"\nCerco change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
+
 			maximo.quickSearch(change)
 			maximo.handleIfComingFromDetail()
 			
@@ -92,9 +94,11 @@ if __name__ == "__main__":
 
 			maximo.waitForInputEditable("#m8e32699b-tb")
 
-			browser.find_element_by_id("m8e32699b-tb").send_keys("COMPLETE")
-			browser.find_element_by_id("m8e32699b-tb").send_keys(Keys.TAB)
-			
+
+			maximo.setNamedInput({ 
+				"Completion Code:": "COMPLETE", 
+			})
+						
 			maximo.waitUntilReady()
 
 			# Click on the "Change Status" button and set the new Status
@@ -108,7 +112,7 @@ if __name__ == "__main__":
 				maximo.routeWorkflowDialog.clickRouteWorkflow()
 
 			except MaximoWorkflowError as exception:
-				print("Error while clicking on the 'Route Workflow' button:\n" + str(exception))
+				logger.exception("Error while clicking on the 'Route Workflow' button: " + str(exception))
 
 				continue
 			except Exception as e:
@@ -128,7 +132,7 @@ if __name__ == "__main__":
 		maximo.logout()
 	
 	except Exception as e:
-		print(e)
+		logger.exception("Generic error during the script execution..." + str(e))
 
 	finally:
 		print()

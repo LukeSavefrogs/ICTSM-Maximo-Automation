@@ -58,13 +58,12 @@ def checkUpdated(fileName):
 	current_vers_fd = open(getCorrectPath(f"{fileName}.version"), "r")
 	current_vers = current_vers_fd.readline()
 
-	url = f"https://raw.githubusercontent.com/LukeSavefrogs/ICTSM-Maximo-Automation/master/dist/{urllib.parse.quote(os.path.splitext(os.path.basename(fileName))[0])}.version"
-	url_download = f"https://github.com/LukeSavefrogs/ICTSM-Maximo-Automation/blob/master/dist/{urllib.parse.quote(os.path.splitext(os.path.basename(fileName))[0])}.exe?raw=true"
+	script_name = urllib.parse.quote(os.path.splitext(os.path.basename(fileName))[0])
+	url = f"https://raw.githubusercontent.com/LukeSavefrogs/ICTSM-Maximo-Automation/master/dist/{script_name}.version"
+	url_download = f"https://github.com/LukeSavefrogs/ICTSM-Maximo-Automation/blob/master/dist/{script_name}.exe?raw=true"
 
 	comp_vers = (requests.get(url)).text
 	diff = compare_versions(current_vers, comp_vers)
-
-	# print(current_vers, comp_vers, diff)
 
 	if diff < 0:
 		print("-----------------------------------")
