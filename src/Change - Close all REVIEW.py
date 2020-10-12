@@ -7,7 +7,7 @@ import sys
 import os
 
 from maximo_gui_connector import MaximoAutomation
-from maximo_gui_connector import MaximoWorkflowError
+from maximo_gui_connector import MaximoWorkflowError, MaximoLoginFailed
 from maximo_gui_connector.constants import SUPPORTED_BROWSERS
 
 import json
@@ -27,6 +27,7 @@ def getCredentials ():
 	with open(fileName, "r") as f:
 		data = json.load(f)
 
+	# return (data["USERNAME"], "TEST_WRONG_PASSWORD")
 	return (data["USERNAME"], data["PASSWORD"])
 
 
@@ -35,7 +36,7 @@ if __name__ == "__main__":
 	
 	try:
 		logger = logging.getLogger(__name__)
-		logger2 = logging.getLogger()
+		logger2 = logging.getLogger("maximo_gui_connector")
 
 		logger_consoleHandler = logging.StreamHandler(sys.stdout)
 		logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
@@ -80,11 +81,14 @@ if __name__ == "__main__":
 		# Get all the records in the table (and all the pages available)
 		records = maximo.getAllRecordsFromTable()
 
+		print(records)
 
-		changes = [ record["data"]["change"]["value"] for record in records ]
+		changes = [ record["data"]["Change"] for record in records ]
+
+		logger.info(f"Data collected. Total {len(changes)} changes\n")
 
 		for index, change in enumerate(changes):
-			logger.info(f"\nCerco change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
+			logger.info(f"Cerco change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
 
 			maximo.quickSearch(change)
 			maximo.handleIfComingFromDetail()
@@ -112,7 +116,7 @@ if __name__ == "__main__":
 				maximo.routeWorkflowDialog.clickRouteWorkflow()
 
 			except MaximoWorkflowError as exception:
-				logger.exception("Error while clicking on the 'Route Workflow' button: " + str(exception))
+				logger.exception("Error while clicking on the 'Route Workflow' button: " + str(exception) + "\n")
 
 				continue
 			except Exception as e:
@@ -132,7 +136,11 @@ if __name__ == "__main__":
 		maximo.logout()
 	
 	except Exception as e:
-		logger.exception("Generic error during the script execution..." + str(e))
+		logger.critical("Generic error during the script execution..." + str(e))
+		logger.exception(e)
+
+	except MaximoLoginFailed as e:
+		logger.critical(f"Couldn't login... Check the credentials stored in file `maximo_credentials.json`! {str(e)}")
 
 	finally:
 		print()

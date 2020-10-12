@@ -77,6 +77,8 @@ def checkUpdated(fileName):
 
 		sys.exit()
 
+	print(f"-------------- Versione script: {current_vers} --------------\n")
+
 
 def checkVersions (fileName):
 	try:

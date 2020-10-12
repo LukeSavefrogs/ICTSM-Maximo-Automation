@@ -51,7 +51,7 @@ if __name__ == "__main__":
 	
 	try:
 		logger = logging.getLogger(__name__)
-		logger2 = logging.getLogger()
+		logger2 = logging.getLogger("maximo_gui_connector")
 
 		logger_consoleHandler = logging.StreamHandler(sys.stdout)
 		logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))

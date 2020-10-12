@@ -136,7 +136,6 @@ def downloadRestoreTemplate(CHANGE_NUM):
 		chrome_options = webdriver.ChromeOptions()
 		preference = {'download.default_directory': DOWNLOAD_DIR, "safebrowsing.enabled": "false"}
 		chrome_options.add_experimental_option('prefs', preference)
-		chrome_options.add_experimental_option('prefs', preference)
 		chrome_flags = [
 			"--disable-extensions",
 			"--start-minimized",
