@@ -91,7 +91,7 @@ if __name__ == "__main__":
 		browser = maximo.driver
 
 		INPRG_MAX_RETRIES = 5
-
+		completed = 0
 
 		# Here we are into the Home Page.
 		# We need to go to the Changes section...
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 								time.sleep(10)
 
 								continue
-
+							
 							break
 						else:
 							logger.error(f"Reached maximum retries number ({INPRG_MAX_RETRIES}) while trying to go from INPRG to COMP")
@@ -215,6 +215,7 @@ if __name__ == "__main__":
 						break
 				elif status == "COMP":
 					logger.info(f"Task for change {change} is now in COMP status\n")
+					completed += 1
 					
 					break
 				else:
@@ -232,11 +233,19 @@ if __name__ == "__main__":
 		print(e)
 
 	finally:
-		print()
-		input("Premi un tasto per terminare il programma")
+		
+		print(
+			"\n----------------------------------------------------------------------\n" + 
+			f"               Sono stati portati in REVIEW {completed}/{len(CHANGES)} change\n" +
+			"----------------------------------------------------------------------\n"
+		)
 
+		print()
+		
 		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
 		try:
 			maximo.close()
 		except NameError as e:
 			pass
+		
+		input("Premi un tasto per terminare il programma")

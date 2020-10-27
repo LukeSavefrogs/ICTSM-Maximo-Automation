@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
 			maximo.logger.info(f"In corso: {incident} ({ str(index + 1) } of { str(len(incidents)) })")
 			maximo.logger.info(f"Resolution: {resolution}\n")
-
+			continue
 			current_status = ""
 			while current_status != "RESOLVED":
 				maximo.goto_tab("Incident")

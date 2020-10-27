@@ -254,7 +254,7 @@ def downloadRestoreTemplate(CHANGE_NUM):
 
 logger = logging.getLogger(__name__)
 if __name__ == "__main__":
-	CHANGE_NUM = "CH1713720"
+	CHANGE_NUM = "CH1753236"
 
 	try:
 		logger.setLevel(logging.DEBUG)

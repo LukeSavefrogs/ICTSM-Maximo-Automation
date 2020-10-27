@@ -31,9 +31,9 @@ def getCredentials ():
 	return (data["USERNAME"], data["PASSWORD"])
 
 
-if __name__ == "__main__":
-	checkUpdated(__file__)
-	
+
+
+def closeAllReview(): 
 	try:
 		logger = logging.getLogger(__name__)
 		logger2 = logging.getLogger("maximo_gui_connector")
@@ -87,6 +87,7 @@ if __name__ == "__main__":
 
 		logger.info(f"Data collected. Total {len(changes)} changes\n")
 
+		change_closed = 0
 		for index, change in enumerate(changes):
 			logger.info(f"Cerco change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
 
@@ -128,7 +129,7 @@ if __name__ == "__main__":
 			maximo.routeWorkflowDialog.closeDialog()
 
 			logger.info(f"Chiuso change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")\n")
-			# break
+			change_closed += 1
 
 
 		if maximo.debug: input("Premi per eseguire il logout")
@@ -143,7 +144,25 @@ if __name__ == "__main__":
 		logger.critical(f"Couldn't login... Check the credentials stored in file `maximo_credentials.json`! {str(e)}")
 
 	finally:
+		print(
+			"\n----------------------------------------------------------------------\n" + 
+			f"             Sono stati portati in CLOSE {change_closed}/{len(changes)} change\n" +
+			"----------------------------------------------------------------------\n"
+		)
+
+
+		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
+		try:
+			maximo.close()
+		except NameError as e:
+			pass
+		
 		print()
 		input("Premi un tasto per terminare il programma")
 
-		maximo.close()
+
+		
+if __name__ == "__main__":
+	checkUpdated(__file__)
+	
+	closeAllReview()

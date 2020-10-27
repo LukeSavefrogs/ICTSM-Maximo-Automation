@@ -91,7 +91,7 @@ def checkVersions (fileName):
 
 def updateVersions (fileName):
 	if not checkVersions (fileName): 
-		return;
+		return
 
 	source_vers_filename = f"./src/{fileName}.version"
 	compil_vers_filename = f"./dist/{fileName}.version"
