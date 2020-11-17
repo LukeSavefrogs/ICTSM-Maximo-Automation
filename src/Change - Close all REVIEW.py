@@ -15,54 +15,42 @@ import time
 
 import logging
 from updateutils import checkUpdated
-
-def getCredentials ():	
-	"""
-	Gets the credentials from a local json
-
-	Returns:
-		tuple: contains USERNAME and PASSWORD
-	"""
-	fileName = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'maximo_credentials.json')
-	with open(fileName, "r") as f:
-		data = json.load(f)
-
-	# return (data["USERNAME"], "TEST_WRONG_PASSWORD")
-	return (data["USERNAME"], data["PASSWORD"])
-
-
+import shared.utils as utils
 
 
 def closeAllReview(): 
+	logger = logging.getLogger(__name__)
+	logger2 = logging.getLogger("maximo_gui_connector")
+
+	logger_consoleHandler = logging.StreamHandler(sys.stdout)
+	logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
+
+	current_directory = os.path.dirname(os.path.realpath(__file__))
+	current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
+
+
+	logfile = os.path.join(current_directory, f"{current_filename_no_ext}.log")
+
+	logger_fileHandler = logging.FileHandler(filename=logfile)
+	logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+
+	# Add handlers to the logger
+	logger.addHandler(logger_consoleHandler)
+	logger.addHandler(logger_fileHandler)
+
+	logger2.addHandler(logger_consoleHandler)
+
+	logger.setLevel(logging.INFO)
+	logger.propagate = False
+
+
+	# Get credentials
+	USERNAME, PASSWORD = utils.getCredentials()
+
+	change_closed = 0
+	CHANGES = []
+
 	try:
-		logger = logging.getLogger(__name__)
-		logger2 = logging.getLogger("maximo_gui_connector")
-
-		logger_consoleHandler = logging.StreamHandler(sys.stdout)
-		logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
-
-		current_directory = os.path.dirname(os.path.realpath(__file__))
-		current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
-
-
-		logfile = os.path.join(current_directory, f"{current_filename_no_ext}.log")
-
-		logger_fileHandler = logging.FileHandler(filename=logfile)
-		logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
-
-		# Add handlers to the logger
-		logger.addHandler(logger_consoleHandler)
-		logger.addHandler(logger_fileHandler)
-
-		logger2.addHandler(logger_consoleHandler)
-
-		logger.setLevel(logging.INFO)
-		logger.propagate = False
-
-
-		# Get credentials
-		USERNAME, PASSWORD = getCredentials()
-				
 		maximo = MaximoAutomation({ "debug": False, "headless": True })
 		maximo.login(USERNAME, PASSWORD)
 
@@ -83,13 +71,13 @@ def closeAllReview():
 
 		print(records)
 
-		changes = [ record["data"]["Change"] for record in records ]
+		CHANGES = [ record["data"]["Change"] for record in records ]
 
-		logger.info(f"Data collected. Total {len(changes)} changes\n")
+		logger.info(f"Data collected. Total {len(CHANGES)} changes\n")
 
 		change_closed = 0
-		for index, change in enumerate(changes):
-			logger.info(f"Cerco change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")")
+		for index, change in enumerate(CHANGES):
+			logger.info(f"Cerco change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")")
 
 			maximo.quickSearch(change)
 			maximo.handleIfComingFromDetail()
@@ -128,7 +116,7 @@ def closeAllReview():
 
 			maximo.routeWorkflowDialog.closeDialog()
 
-			logger.info(f"Chiuso change: {change} (" + str(index + 1) + " of " + str(len(changes)) + ")\n")
+			logger.info(f"Chiuso change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")\n")
 			change_closed += 1
 
 
@@ -145,9 +133,9 @@ def closeAllReview():
 
 	finally:
 		print(
-			"\n----------------------------------------------------------------------\n" + 
-			f"             Sono stati portati in CLOSE {change_closed}/{len(changes)} change\n" +
-			"----------------------------------------------------------------------\n"
+			"\n----------------------------------------------------------------------\n" +
+			f"Sono stati portati in CLOSE {change_closed}/{len(CHANGES)} change".center(70) + 
+			"\n----------------------------------------------------------------------\n"
 		)
 
 
@@ -158,11 +146,11 @@ def closeAllReview():
 			pass
 		
 		print()
-		input("Premi un tasto per terminare il programma")
+		input("Premi INVIO per terminare il programma...")
 
 
 		
 if __name__ == "__main__":
-	checkUpdated(__file__)
+	checkUpdated("Change - Close all REVIEW.py")
 	
 	closeAllReview()

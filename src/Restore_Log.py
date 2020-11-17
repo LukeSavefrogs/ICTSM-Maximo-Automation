@@ -19,19 +19,8 @@ import os
 import json
 import subprocess
 
-def getCredentials ():	
-	"""
-	Gets the credentials from a local json
+import shared.utils as utils
 
-	Returns:
-		tuple: contains USERNAME and PASSWORD
-	"""
-	logger.debug("Fetching credentials...")
-	fileName = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'maximo_credentials.json')
-	with open(fileName) as f:
-		data = json.load(f)
-
-	return (data["USERNAME"], data["PASSWORD"])
 
 
 def every_downloads_chrome(driver):
@@ -121,7 +110,7 @@ def wait_for_downloads(driver, file_download_path, headless=False, num_files=1):
 
 def downloadRestoreTemplate(CHANGE_NUM):
 	try:
-		USERNAME, PASSWORD = getCredentials()
+		USERNAME, PASSWORD = utils.getCredentials()
 
 		EXECUTE_HEADLESS = True
 
@@ -236,8 +225,6 @@ def downloadRestoreTemplate(CHANGE_NUM):
 
 		logger.info("Files Downloaded: {files}".format(files=", ".join(new_download_list)))
 
-		for fileName in new_download_list: os.startfile(fileName) #subprocess.run(['open', fileName], check=True)
-
 		maximo.logout()
 		maximo.close()
 
@@ -254,7 +241,7 @@ def downloadRestoreTemplate(CHANGE_NUM):
 
 logger = logging.getLogger(__name__)
 if __name__ == "__main__":
-	CHANGE_NUM = "CH1753236"
+	CHANGE_NUM = "CH1761770"
 
 	try:
 		logger.setLevel(logging.DEBUG)
@@ -268,11 +255,13 @@ if __name__ == "__main__":
 		if len(downloaded_files) == 0:
 			logger.error("Deve essere scaricato SOLO un file. Nessuno trovato")
 
-			sys.exit()
+			sys.exit(1)
 		elif len(downloaded_files) != 1:
 			logger.error("Deve essere scaricato SOLO un file. File trovati: {files}".format(files=", ".join(downloaded_files)))
 			
-			sys.exit()
+			sys.exit(2)
+
+		for fileName in downloaded_files: os.startfile(fileName) #subprocess.run(['open', fileName], check=True)
 
 	except Exception as e:
 		logger.exception(e)

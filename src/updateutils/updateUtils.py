@@ -3,15 +3,45 @@ import os
 import urllib.parse
 import requests
 import re
+import inspect
 
 def getCorrectPath(filePath):
+	"""Returns the correct path (relative/absolute) wether is a frozen app or a script 
+
+	Args:
+		filePath (str): The path to the resource you need
+
+	Returns:
+		str: Final resolved path
+	"""
+	# Se il percorso specificato è assoluto non fare nulla
+	if os.path.isabs(filePath):
+		return filePath
+
+
+	# Se è un'applicazione PyInstaller e il percorso è relativo
 	if hasattr(sys, "_MEIPASS"):
-		# if getattr(sys, 'frozen', False):
 		file = os.path.join(sys._MEIPASS, filePath)
+	
+	# Se è uno script e il percorso è relativo
 	else:
-		file = filePath
+		# Scopro il percorso del file chiamante
+		frame = inspect.stack()[1]
+		caller_filename = frame[0].f_code.co_filename
+
+		# Prendo la cartella parent del file chiamante
+		caller_working_directory = os.path.dirname(os.path.realpath(caller_filename))
+
+		# Risolvo i percorsi relativi alla cartella in cui è presente lo script chiamante
+		file = os.path.abspath(os.path.join(caller_working_directory, filePath))
+
+
+		print(f"Caller: {caller_filename}")
+		print(f"Caller WD: {caller_working_directory}")
+		print(f"Final path: {file}\n")
 
 	return file
+
 
 
 def compare_versions(vA, vB):

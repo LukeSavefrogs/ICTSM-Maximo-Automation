@@ -3,6 +3,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+
 import maximo_gui_connector as MGC
 from maximo_gui_connector import MaximoWorkflowError
 
@@ -15,20 +17,10 @@ import logging
 import os
 import sys
 from updateutils import checkUpdated
+from os.path import expanduser
+import shared.utils as utils
 
-
-def getCredentials ():	
-	"""
-	Gets the credentials from a local json
-
-	Returns:
-		tuple: contains USERNAME and PASSWORD
-	"""
-	fileName = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'maximo_credentials.json')
-	with open(fileName) as f:
-		data = json.load(f)
-
-	return (data["USERNAME"], data["PASSWORD"])
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def getChanges (fileName = 'changes.txt'):
@@ -40,51 +32,70 @@ def getChanges (fileName = 'changes.txt'):
 	Returns:
 		list: contains all the changes to process
 	"""
-	file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), fileName)
-	with open(file_path, "r") as f:
-		array_data = [l for l in (line.strip() for line in f) if l and not l.startswith("#")]
+	array_data = []
+
+	CHANGES_FILE = os.path.join(CURRENT_DIR, fileName)
+
+	try:
+		with open(CHANGES_FILE, "r") as f:
+			array_data = [l for l in (line.strip() for line in f) if l and not l.startswith("#")]
+
+	except FileNotFoundError as e:
+		print(f"File '{fileName}' non trovato. Lo creo")
+
+		open(CHANGES_FILE, "w").close()
 
 	return array_data
 
+
+
 if __name__ == "__main__":
-	checkUpdated(__file__)
+	checkUpdated("Change - IMPL to REVIEW.py")
+
+	logger = logging.getLogger(__name__)
+	logger2 = logging.getLogger("maximo_gui_connector")
+
+	logger_consoleHandler = logging.StreamHandler(sys.stdout)
+	logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
+
+	current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
+
+
+	logfile = os.path.join(CURRENT_DIR, f"{current_filename_no_ext}.log")
+
+	logger_fileHandler = logging.FileHandler(filename=logfile)
+	logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+
+	# Add handlers to the logger
+	logger.addHandler(logger_consoleHandler)
+	logger.addHandler(logger_fileHandler)
+
+	logger2.addHandler(logger_consoleHandler)
+
+	logger.setLevel(logging.INFO)
+	logger.propagate = False
+
+	# Get credentials
+	USERNAME, PASSWORD = utils.getCredentials()
+
+	CHANGES = getChanges()
+
+	if not CHANGES:
+		print()
+		print("Non e' stato specificato nessun Change da portare in REVIEW. Esco...\n")
+
+		exit(0)
 	
+	print("---------------------------------------------------------------------------")
+	print()
+	print("NOTA:")
+	print(f"I principali eventi verranno salvati sul file di log: '{logfile}''")
+	print()
+	print("---------------------------------------------------------------------------\n")
+
+	completed = 0
+
 	try:
-		logger = logging.getLogger(__name__)
-		logger2 = logging.getLogger("maximo_gui_connector")
-
-		logger_consoleHandler = logging.StreamHandler(sys.stdout)
-		logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
-
-		current_directory = os.path.dirname(os.path.realpath(__file__))
-		current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
-
-
-		logfile = os.path.join(current_directory, f"{current_filename_no_ext}.log")
-
-		logger_fileHandler = logging.FileHandler(filename=logfile)
-		logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
-
-		# Add handlers to the logger
-		logger.addHandler(logger_consoleHandler)
-		logger.addHandler(logger_fileHandler)
-
-		logger2.addHandler(logger_consoleHandler)
-
-		logger.setLevel(logging.INFO)
-		logger.propagate = False
-
-		try:
-			# Get credentials
-			USERNAME, PASSWORD = getCredentials()
-			
-			CHANGES = getChanges()
-		except FileNotFoundError as e:
-			fileName = e
-			logger.critical(f"File '{fileName}' mancante. Controllare e riavviare lo script... ")
-			sys.exit(2)
-
-
 		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
 		maximo.login(USERNAME, PASSWORD)
 
@@ -161,13 +172,40 @@ if __name__ == "__main__":
 					try:
 						taskRetryTimes += 1
 						maximo.clickRouteWorkflow()
-					except MaximoWorkflowError:
-						if taskRetryTimes > 5:
-							logger.error(f"Cannot change Task from IMPL to INPRG")
-							break
 
-						logger2.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({taskRetryTimes} of 5 MAX)")
-						time.sleep(20)
+						foregroundDialog = maximo.getForegroundDialog()
+						print(f"IMPL -> INPRG: {foregroundDialog}")
+
+						# TODO: Da portare all'interno dei singoli script per una migliore astrazione
+						if foregroundDialog:
+							if "Complete Workflow Assignment" in foregroundDialog["title"]:
+								foregroundDialog["buttons"]["OK"].click()
+								maximo.waitUntilReady()
+
+							elif "Please verify that TASK has a valid schedule start" in foregroundDialog["text"]:
+								logger.error(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
+
+								foregroundDialog["buttons"]["Close"].click()
+								break
+
+							if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
+								msg_box_text = maximo.driver.find_element_by_id("mb_msg").get_attribute("innerText").strip()
+
+								if "Change SCHEDULED DATE is not reach to start Activity" in msg_box_text:
+									btn_close = maximo.driver.find_element_by_id("m15f1c9f0-pb")
+									btn_close.click()
+
+									maximo.waitUntilReady()
+
+									if taskRetryTimes > 5:
+										logger.error(f"Cannot change Task from IMPL to INPRG")
+										break
+
+									logger2.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({taskRetryTimes} of 5 MAX)")
+									time.sleep(20)
+
+					except Exception as e:
+						logger2.critical(f"Error: {e}")
 
 					if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
 						browser.find_element_by_id("m15f1c9f0-pb").click()
@@ -193,18 +231,27 @@ if __name__ == "__main__":
 							if maximo.debug: logger.debug("Clicking on Route WF")
 
 							maximo.clickRouteWorkflow()
-							
 							time.sleep(3)
 
-							# If change is not yet in INPRG status
-							if browser.find_elements_by_id("m15f1c9f0-pb"):
-								if maximo.debug: logger.debug(f"Task is not yet in INPRG status: retrying in 10 seconds ({retryTimes} attempt of {INPRG_MAX_RETRIES} MAX)")
+							foregroundDialog = maximo.getForegroundDialog()
+							print(f"INPRG -> COMP: {foregroundDialog}")
 
-								browser.find_element_by_id("m15f1c9f0-pb").click()
-								time.sleep(10)
+							if foregroundDialog:
+								if "Complete Workflow Assignment" in foregroundDialog["title"]:
+									foregroundDialog["buttons"]["OK"].click()
+									maximo.waitUntilReady()
 
-								continue
-							
+								# If change is not yet in INPRG status
+								elif "The change is not in status INPRG yet, please wait few seconds then try again." in foregroundDialog["text"]:
+									logger.error(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
+
+									foregroundDialog["buttons"]["Close"].click()
+									maximo.waitUntilReady()
+
+									if maximo.debug: logger.debug(f"Task is not yet in INPRG status: retrying in 10 seconds ({retryTimes} attempt of {INPRG_MAX_RETRIES} MAX)")
+									time.sleep(10)
+
+									continue
 							break
 						else:
 							logger.error(f"Reached maximum retries number ({INPRG_MAX_RETRIES}) while trying to go from INPRG to COMP")
@@ -233,19 +280,17 @@ if __name__ == "__main__":
 		print(e)
 
 	finally:
-		
 		print(
-			"\n----------------------------------------------------------------------\n" + 
-			f"               Sono stati portati in REVIEW {completed}/{len(CHANGES)} change\n" +
-			"----------------------------------------------------------------------\n"
+			"\n----------------------------------------------------------------------\n" +
+			f"Sono stati portati in REVIEW {completed}/{len(CHANGES)} change".center(70) + 
+			"\n----------------------------------------------------------------------\n"
 		)
-
 		print()
 		
-		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
+		# Per evitare che se il programma dumpi troppo presto cercando di chiudere un oggetto non ancora instanziato
 		try:
 			maximo.close()
 		except NameError as e:
 			pass
 		
-		input("Premi un tasto per terminare il programma")
+		input("Premi INVIO per terminare il programma...")
