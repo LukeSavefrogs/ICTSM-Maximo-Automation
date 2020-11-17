@@ -38,11 +38,9 @@ Di seguito un elenco delle automazioni disponibili al momento...
 ### :zap: Chiusura change in REVIEW
 #### Link
 - [**Download**](./dist/Change%20-%20Close%20all%20REVIEW.exe?raw=true)
-- [Codice sorgente](./src/Change%20-%20Close%20all%20REVIEW.py)
 
 #### Istruzioni per l'utilizzo
-1. Se non presente, [crea il file per le **credenziali**](#salvare-le-credenziali)
-2. **Lancia lo script**
+1. **Lancia lo script** e segui le istruzioni a video
 
 > ### Nota
 > Lo script crea una log con vari dettagli al suo interno chiamata `{nome_script}.log`
@@ -51,11 +49,9 @@ Di seguito un elenco delle automazioni disponibili al momento...
 ### :zap: Portare change da IMPL/INPRG a REVIEW
 #### Link
 - [**Download**](./dist/Change%20-%20IMPL%20to%20REVIEW.exe?raw=true)
-- [Codice sorgente](./src/Change%20-%20IMPL%20to%20REVIEW.py)
 
 #### Istruzioni per l'utilizzo
-1. Se non presente, [crea il file per le **credenziali**](#salvare-le-credenziali)
-2. **Crea un file** chiamato `changes.txt` e inserisci al suo interno tutti i change su linee diverse. Es.
+1. **Crea un file** chiamato `changes.txt` nella **stessa cartella** in cui hai salvato lo script e inserisci al suo interno tutti i change su linee diverse. Es.
 	```
 	CHAAAAAAA
 	CHBBBBBBB
@@ -69,9 +65,9 @@ Di seguito un elenco delle automazioni disponibili al momento...
 	CHYYYYYYY
 	CHZZZZZZZ
 	```
-	> ### Keep calm :)
+	> ### Pro tip :)
 	> Le linee lasciate **vuote** o **precedute** da un <kbd>#</kbd> verranno **ignorate**
-3. **Lancia lo script** e aspetta ;)
+2. **Lancia lo script** e aspetta ;)
 
 > ### Nota
 > Lo script crea una log con vari dettagli al suo interno chiamata `{nome_script}.log`
@@ -80,9 +76,18 @@ Di seguito un elenco delle automazioni disponibili al momento...
 
 ## :book: Guide varie
 ### Salvare le credenziali
+
 Il file di configurazione per le credenziali è fondamentale per l'utilizzo degli script di Maximo.
 
-1. Crea un file chiamato `maximo_credentials.json` **nella stessa cartella** in cui hai salvato gli **script**. 
+> #### Deprecato
+> Questa sezione della guida **non è più necessaria**. Viene lasciata solo per fini di documentazione.
+> 
+> Dalla versione 0.5.1 infatti è stata implementata una **configurazione guidata** all'interno dello script nel caso non venga trovato il file delle credenziali.  
+> Inoltre tale file è stato spostato all'interno della home dell'utente (es. `C:\Users\Luca Salvarani`)
+
+
+1. Crea un file chiamato `maximo_credentials.json` **nella stessa cartella** in cui hai salvato gli **script**.   
+
 2. Incolla al suo interno il seguente testo:
 	```json
 	{
@@ -90,8 +95,8 @@ Il file di configurazione per le credenziali è fondamentale per l'utilizzo degl
 		"PASSWORD": "LA TUA PASSOWRD"
 	}
 	```
-3. Sostituisci `IL TUO USERNAME` e `LA TUA PASSOWRD` con i rispettivi dati
 
+3. Sostituisci `IL TUO USERNAME` e `LA TUA PASSOWRD` con i rispettivi dati
 <br>
 
 ## :hammer_and_wrench: Note per lo sviluppo 
