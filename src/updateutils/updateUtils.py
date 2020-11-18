@@ -36,9 +36,9 @@ def getCorrectPath(filePath):
 		file = os.path.abspath(os.path.join(caller_working_directory, filePath))
 
 
-		print(f"Caller: {caller_filename}")
-		print(f"Caller WD: {caller_working_directory}")
-		print(f"Final path: {file}\n")
+		# print(f"Caller: {caller_filename}")
+		# print(f"Caller WD: {caller_working_directory}")
+		# print(f"Final path: {file}\n")
 
 	return file
 

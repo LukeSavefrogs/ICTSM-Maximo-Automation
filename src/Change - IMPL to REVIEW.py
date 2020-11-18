@@ -50,7 +50,8 @@ def getChanges (fileName = 'changes.txt'):
 
 
 if __name__ == "__main__":
-	checkUpdated("Change - IMPL to REVIEW.py")
+	checkUpdated(__file__)
+	# checkUpdated("Change - IMPL to REVIEW.py")
 
 	logger = logging.getLogger(__name__)
 	logger2 = logging.getLogger("maximo_gui_connector")

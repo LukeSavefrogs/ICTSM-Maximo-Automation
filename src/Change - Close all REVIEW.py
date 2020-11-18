@@ -151,6 +151,7 @@ def closeAllReview():
 
 		
 if __name__ == "__main__":
-	checkUpdated("Change - Close all REVIEW.py")
+	checkUpdated(__file__)
+	# checkUpdated("Change - Close all REVIEW.py")
 	
 	closeAllReview()
