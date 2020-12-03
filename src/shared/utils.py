@@ -3,6 +3,118 @@ import sys
 import inspect
 import json
 
+from shared.cache import Cache
+
+class Credentials (Cache):
+	FILENAME_TEMPLATE = "{product}_credentials.yaml"
+
+	def __init__(self, product_name:str, max_login_fails:int = 2, **kwds) -> None:
+		"""Initialize the Credentials for the application
+
+		Args:
+			product_name (str): Name of the product. Used to build the filename
+			max_login_fails (int, optional): Max number of failures allowed for the credentials. Defaults to 2.
+		"""
+		file_name = self.FILENAME_TEMPLATE.format(product=product_name.lower())
+		self.max_login_fails = max_login_fails if isinstance(max_login_fails, int) else 2
+
+		super().__init__(file_name, **kwds)
+
+	def getCredentials(self):
+		if not self.exists():
+			print(f"File di configurazione '{self.getCacheFilename()}' non trovato.\n")
+			self.setCredentials()
+
+		conf = self.getRawContent()
+
+		if not self.isValid(conf):
+			print(f"File di configurazione '{self.getCacheFilename()}' non valido.\n")
+			self.setCredentials()
+			conf = self.getRawContent()
+
+		print(f"File di configurazione '{self.getCacheFilename()}' caricato.\n")
+
+		return conf
+
+	def setCredentials(self):
+		USERNAME = self.__single_input_cred("Inserisci lo USERNAME di Maximo: ")
+		PASSWORD = self.__single_input_cred("Inserisci la PASSWORD di Maximo: ")
+
+		data = {
+			"USERNAME": USERNAME, 
+			"PASSWORD": PASSWORD,
+			"FAILED_LOGINS": 0
+		}
+
+		self.setCache(data)
+
+		print(f"\nHo salvato le credenziali nel file '{self.getCacheFilename()}'")
+
+	def isValid(self, config: dict):
+		# print("Configurazione: " + str(config))
+		
+		if not super().isValid(config):
+			return False
+
+		# Additional checks
+		for key in ["FAILED_LOGINS", "USERNAME", "PASSWORD"]:
+			if key not in config["data"]:
+				print(f"Chiave necessaria non trovata: {key}")
+				return False
+
+		if config["data"]["FAILED_LOGINS"] >= self.max_login_fails:
+			print("\n\n------------------------------------------------------------------------------------------")
+			print("PASSWORD SCADUTA".center(90))
+			print("Cambiare la password e reimmetterla in questo script".center(90))
+			print("------------------------------------------------------------------------------------------\n\n")
+
+			return False
+	
+		return True
+
+	def addFailedLoginAttempt(self):
+		config = self.getRawContent()["data"]
+		config["FAILED_LOGINS"] += 1
+
+		self.setCache(config)
+
+	def clearFailedLoginAttempts(self):
+		config = self.getRawContent()["data"]
+		config["FAILED_LOGINS"] = 0
+
+		self.setCache(config)
+
+
+	# Hidden method
+	def __single_input_cred(self, text:str = ""):
+		"""Utility method. Used internally to execute checks on user credential input
+
+		Args:
+			text (str, optional): The label text to show to the user. Defaults to "".
+
+		Returns:
+			str: The value provided by the user
+		"""
+		while True:
+			try:
+				value = str(input(text))
+			except ValueError:
+				print("ERRORE - Valore non valido. Deve essere una stringa\n")
+				continue
+
+			if value.strip() == "":
+				print("ERRORE - Il valore non puo' essere lasciato vuoto\n")
+				continue
+			else:
+				break
+
+		return value
+
+
+
+
+
+
 def getCredentials ():	
 	"""
 	Gets the credentials from a local json
@@ -42,7 +154,6 @@ def getCredentials ():
 
 
 	return (data["USERNAME"], data["PASSWORD"])
-
 
 
 def getCorrectPath(filePath):

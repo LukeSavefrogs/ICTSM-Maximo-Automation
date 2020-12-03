@@ -4,6 +4,7 @@ import urllib.parse
 import requests
 import re
 import inspect
+from urllib3.exceptions import InsecureRequestWarning
 
 def getCorrectPath(filePath):
 	"""Returns the correct path (relative/absolute) wether is a frozen app or a script 
@@ -78,19 +79,43 @@ def compare_versions(vA, vB):
 	return rc
 
 
+def uri_exists_stream(uri: str) -> bool:
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+    requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+
+    try:
+        with requests.head(uri, stream=True, allow_redirects=True, headers=headers, verify=False) as response:
+            try:
+                response.raise_for_status()
+                return True
+            except requests.exceptions.HTTPError:
+                return False
+    except requests.exceptions.ConnectionError:
+        return False
+
+
 
 def checkUpdated(fileName):
-	fileName = os.path.splitext(fileName)[0]
-	
-	if not os.path.exists(getCorrectPath(f"{fileName}.version")):
-		raise FileNotFoundError(f"File '{fileName}'.version not exists")
-	
-	current_vers_fd = open(getCorrectPath(f"{fileName}.version"), "r")
-	current_vers = current_vers_fd.readline()
+	fileName_noExt = os.path.splitext(fileName)[0]
 
-	script_name = urllib.parse.quote(os.path.splitext(os.path.basename(fileName))[0])
+	script_name = urllib.parse.quote(os.path.splitext(os.path.basename(fileName_noExt))[0])
+	
 	url = f"https://raw.githubusercontent.com/LukeSavefrogs/ICTSM-Maximo-Automation/master/dist/{script_name}.version"
 	url_download = f"https://github.com/LukeSavefrogs/ICTSM-Maximo-Automation/blob/master/dist/{script_name}.exe?raw=true"
+
+
+	if not os.path.exists(getCorrectPath(f"{fileName_noExt}.version")):
+		print(f"\n\nIl file LOCALE '{fileName_noExt}.version' non esiste.\nContattare lo sviluppatore (Caller: {fileName})\n\n")
+
+		sys.exit(23)
+	elif not uri_exists_stream(url):
+		print(f"\n\nIl file REMOTO '{url}' non esiste.\nContattare lo sviluppatore (Caller: {fileName})\n\n")
+		
+		sys.exit(23)
+	
+
+	current_vers_fd = open(getCorrectPath(f"{fileName_noExt}.version"), "r")
+	current_vers = current_vers_fd.readline()
 
 	comp_vers = (requests.get(url)).text
 	diff = compare_versions(current_vers, comp_vers)
