@@ -20,14 +20,28 @@ import shared.utils as utils
 import traceback
 import textwrap
 import re
+import inspect
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
+# CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
 os.environ['WDM_LOG_LEVEL'] = '0'
 os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
 
 
+def getEntryPoint():
+	is_executable = getattr(sys, 'frozen', False)
+	
+	if is_executable:
+		print("Program is an executable")
+		
+		return sys.executable
+
+	print("Program is a script")
+	return inspect.stack()[-1][1]
+
+
+CURRENT_DIR = os.path.dirname(os.path.realpath(getEntryPoint()))
 
 
 # From: http://patorjk.com/software/taag/#p=display&h=0&v=3&f=3D-ASCII&t=Lista%20Change
@@ -52,7 +66,6 @@ def getChanges (fileName = 'changes.txt'):
 		list: contains all the changes to process
 	"""
 	array_data = []
-
 	CHANGES_FILE = os.path.join(CURRENT_DIR, fileName)
 
 	try:
@@ -65,8 +78,8 @@ def getChanges (fileName = 'changes.txt'):
 		DESCRIZIONE = [
 			"\n".join([ re.sub("^", "# ", line) for line in ASCII_ART.splitlines() if line.strip() != "" ]) + "\n",
 			"# \n",
-			"# Inserisci qui sotto tutti i change che desideri portare in REVIEW.\n",
-			"# Le linee precedute dal carattere '#' verranno ignorate e possono essere cancellate.\n",
+			"# > Inserisci qui sotto tutti i change che desideri portare in REVIEW.\n",
+			"# > Le linee precedute dal carattere '#' verranno ignorate e possono essere cancellate.\n",
 		]
 		with open(CHANGES_FILE, "w") as file: 
 			# Writing data to a file 
@@ -475,4 +488,3 @@ def closeAllReview():
 		
 		print()
 		input("Premi INVIO per terminare il programma...")
-

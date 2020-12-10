@@ -51,7 +51,7 @@ class Credentials (Cache):
 		print(f"\nHo salvato le credenziali nel file '{self.getCacheFilename()}'")
 
 	def isValid(self, config: dict):
-		# print("Configurazione: " + str(config))
+			# print("Configurazione: " + str(config))
 		
 		if not super().isValid(config):
 			return False
@@ -109,51 +109,6 @@ class Credentials (Cache):
 				break
 
 		return value
-
-
-
-
-
-
-def getCredentials ():	
-	"""
-	Gets the credentials from a local json
-
-	Returns:
-		tuple: contains USERNAME and PASSWORD
-	"""
-
-	FILE_BASENAME = "maximo_credentials.json"
-	HOME_DIR = os.path.expanduser("~")
-	CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-	CREDENTIALS_FILE = os.path.join(HOME_DIR, FILE_BASENAME)
-
-	data = {}
-
-	# Se il file di configurazione esiste usa quello
-	if os.path.exists(CREDENTIALS_FILE):
-		print(f"Carico le credenziali dal file '{FILE_BASENAME}'", )
-
-		with open(CREDENTIALS_FILE) as f:
-			data = json.load(f)
-	
-	else:
-		# Altrimenti chiedi all'utente di inserire i dati necessari e crea il file di configurazione
-		print(f"File di configurazione '{FILE_BASENAME}' non trovato.\n")
-
-		USERNAME = input("Inserisci lo USERNAME di Maximo: ")
-		PASSWORD = input("Inserisci la PASSWORD di Maximo: ")
-
-		data = { "USERNAME": USERNAME, "PASSWORD": PASSWORD }
-
-
-		with open(CREDENTIALS_FILE, 'w') as outfile:
-			outfile.write(json.dumps(data, indent=4))
-		
-		print(f"Ho salvato le credenziali nel file '{FILE_BASENAME}'", )
-
-
-	return (data["USERNAME"], data["PASSWORD"])
 
 
 def getCorrectPath(filePath):
