@@ -98,11 +98,15 @@ def uri_exists_stream(uri: str) -> bool:
 def checkUpdated(fileName):
 	fileName_noExt = os.path.splitext(fileName)[0]
 
+
 	script_name = urllib.parse.quote(os.path.splitext(os.path.basename(fileName_noExt))[0])
 	
 	url = f"https://raw.githubusercontent.com/LukeSavefrogs/ICTSM-Maximo-Automation/master/dist/{script_name}.version"
 	url_download = f"https://github.com/LukeSavefrogs/ICTSM-Maximo-Automation/blob/master/dist/{script_name}.exe?raw=true"
 
+	print(f"Comparing {fileName_noExt} against:")
+	print(f"- Local: {getCorrectPath(f'{fileName_noExt}.version')}")
+	print(f"- Remote: {url}")
 
 	if not os.path.exists(getCorrectPath(f"{fileName_noExt}.version")):
 		print(f"\n\nIl file LOCALE '{fileName_noExt}.version' non esiste.\nContattare lo sviluppatore (Caller: {fileName})\n\n")
