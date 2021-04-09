@@ -110,7 +110,10 @@ def wait_for_downloads(driver, file_download_path, headless=False, num_files=1):
 
 def downloadRestoreTemplate(CHANGE_NUM):
 	try:
-		USERNAME, PASSWORD = utils.getCredentials()
+		CREDENTIALS_MANAGER = utils.Credentials(product_name="Maximo")
+		CRED_OBJ = CREDENTIALS_MANAGER.getCredentials()["data"]
+
+		USERNAME, PASSWORD = CRED_OBJ["USERNAME"], CRED_OBJ["PASSWORD"]
 
 		EXECUTE_HEADLESS = True
 
@@ -121,6 +124,10 @@ def downloadRestoreTemplate(CHANGE_NUM):
 		os.makedirs(DOWNLOAD_DIR, exist_ok=True)  # succeeds even if directory exists.
 		shutil.rmtree(FINAL_DIR, ignore_errors=True)
 		os.makedirs(FINAL_DIR, exist_ok=True)  # succeeds even if directory exists.
+
+		# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
+		os.environ['WDM_LOG_LEVEL'] = '0'
+		os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
 
 		chrome_options = webdriver.ChromeOptions()
 		preference = {'download.default_directory': DOWNLOAD_DIR, "safebrowsing.enabled": "false"}
@@ -241,7 +248,8 @@ def downloadRestoreTemplate(CHANGE_NUM):
 
 logger = logging.getLogger(__name__)
 if __name__ == "__main__":
-	CHANGE_NUM = "CH1761770"
+	CHANGE_NUM = "CH1792330"
+
 
 	try:
 		logger.setLevel(logging.DEBUG)

@@ -15,6 +15,7 @@ import json
 import time
 
 import logging
+import coloredlogs
 import shared.utils as utils
 
 import traceback
@@ -33,11 +34,10 @@ def getEntryPoint():
 	is_executable = getattr(sys, 'frozen', False)
 	
 	if is_executable:
-		print("Program is an executable")
-		
+		# print("Program is an executable")
 		return sys.executable
 
-	print("Program is a script")
+	# print("Program is a script")
 	return inspect.stack()[-1][1]
 
 
@@ -98,7 +98,7 @@ def implToReview ():
 	logger_consoleHandler = logging.StreamHandler(sys.stdout)
 	logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
 
-	current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
+	current_filename_no_ext = os.path.splitext(os.path.basename(getEntryPoint()))[0]
 
 
 	logfile = os.path.join(CURRENT_DIR, f"{current_filename_no_ext}.log")
@@ -114,6 +114,11 @@ def implToReview ():
 
 	logger.setLevel(logging.INFO)
 	logger.propagate = False
+
+	
+	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	
 
 	# Get credentials
 	CREDENTIALS_MANAGER = utils.Credentials(product_name="Maximo")
@@ -231,9 +236,8 @@ def implToReview ():
 						maximo.clickRouteWorkflow()
 
 						foregroundDialog = maximo.getForegroundDialog()
-						print(f"IMPL -> INPRG: {foregroundDialog}")
+						logger.debug(f"IMPL -> INPRG: {foregroundDialog}")
 
-						# TODO: Da portare all'interno dei singoli script per una migliore astrazione
 						if foregroundDialog:
 							if "Complete Workflow Assignment" in foregroundDialog["title"]:
 								foregroundDialog["buttons"]["OK"].click()
@@ -262,7 +266,7 @@ def implToReview ():
 									time.sleep(20)
 
 					except Exception as e:
-						logger2.critical(f"Error: {e}")
+						logger2.exception(f"Errore in fase di cambio IMPL -> INPRG")
 
 					if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
 						browser.find_element_by_id("m15f1c9f0-pb").click()
@@ -334,10 +338,8 @@ def implToReview ():
 		maximo.logout()
 	
 	except Exception as e:
-		print(f"OTHER ERROR - Message: {e.msg}")
-		print(f"sys.exc_info(): {sys.exc_info()}")
-		print("Stacktrace:")
-		traceback.print_stack()
+		logger2.exception(f"Errore generico")
+		
 
 	finally:
 		print(
@@ -363,11 +365,10 @@ def closeAllReview():
 	logger_consoleHandler = logging.StreamHandler(sys.stdout)
 	logger_consoleHandler.setFormatter(logging.Formatter(fmt='[%(levelname)s] - %(message)s'))
 
-	current_directory = os.path.dirname(os.path.realpath(__file__))
-	current_filename_no_ext = os.path.splitext(os.path.basename(__file__))[0]
+	current_filename_no_ext = os.path.splitext(os.path.basename(getEntryPoint()))[0]
 
 
-	logfile = os.path.join(current_directory, f"{current_filename_no_ext}.log")
+	logfile = os.path.join(CURRENT_DIR, f"{current_filename_no_ext}.log")
 
 	logger_fileHandler = logging.FileHandler(filename=logfile)
 	logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
@@ -380,6 +381,10 @@ def closeAllReview():
 
 	logger.setLevel(logging.INFO)
 	logger.propagate = False
+
+	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	
 
 	# Get credentials
 	CREDENTIALS_MANAGER = utils.Credentials(product_name="Maximo")
@@ -418,7 +423,7 @@ def closeAllReview():
 
 		change_closed = 0
 		for index, change in enumerate(CHANGES):
-			logger.info(f"Cerco change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")")
+			logger.info(f"CERCO change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")")
 
 			maximo.quickSearch(change)
 			maximo.handleIfComingFromDetail()
@@ -457,7 +462,7 @@ def closeAllReview():
 
 			maximo.routeWorkflowDialog.closeDialog()
 
-			logger.info(f"Chiuso change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")\n")
+			logger.info(f"CHIUSO change: {change} (" + str(index + 1) + " of " + str(len(CHANGES)) + ")\n")
 			change_closed += 1
 
 

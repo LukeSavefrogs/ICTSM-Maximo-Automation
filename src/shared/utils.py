@@ -7,6 +7,7 @@ from shared.cache import Cache
 
 class Credentials (Cache):
 	FILENAME_TEMPLATE = "{product}_credentials.yaml"
+	PRODUCT_NAME = ""
 
 	def __init__(self, product_name:str, max_login_fails:int = 2, **kwds) -> None:
 		"""Initialize the Credentials for the application
@@ -15,7 +16,9 @@ class Credentials (Cache):
 			product_name (str): Name of the product. Used to build the filename
 			max_login_fails (int, optional): Max number of failures allowed for the credentials. Defaults to 2.
 		"""
-		file_name = self.FILENAME_TEMPLATE.format(product=product_name.lower())
+		self.PRODUCT_NAME = product_name
+
+		file_name = self.FILENAME_TEMPLATE.format(product=self.PRODUCT_NAME.lower())
 		self.max_login_fails = max_login_fails if isinstance(max_login_fails, int) else 2
 
 		super().__init__(file_name, **kwds)
@@ -37,8 +40,8 @@ class Credentials (Cache):
 		return conf
 
 	def setCredentials(self):
-		USERNAME = self.__single_input_cred("Inserisci lo USERNAME di Maximo: ")
-		PASSWORD = self.__single_input_cred("Inserisci la PASSWORD di Maximo: ")
+		USERNAME = self.__single_input_cred(f"Inserisci lo USERNAME di {self.PRODUCT_NAME.strip()}: ")
+		PASSWORD = self.__single_input_cred(f"Inserisci la PASSWORD di {self.PRODUCT_NAME.strip()}: ")
 
 		data = {
 			"USERNAME": USERNAME, 
