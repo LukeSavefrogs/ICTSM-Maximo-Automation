@@ -28,8 +28,6 @@ Questo progetto mira all'**automatizzazione** di specifiche procedure del **Team
 
 Il core è formato da una [libreria in Python](https://github.com/LukeSavefrogs/maximo-gui-connector) di mia creazione e ogni script crea un file di log con lo stesso nome in cui vengono salvate informazioni utili.
 
-Per utilizzare gli script è **OBBLIGATORIO** salvare nella **stessa cartella** un file chiamato `maximo_credentials.json` con al suo interno le **credenziali** di Maximo ([vedi](#salvare-le-credenziali))
-
 <br>
 
 ## Elenco Automazioni
