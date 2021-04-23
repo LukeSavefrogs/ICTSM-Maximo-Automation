@@ -92,6 +92,7 @@ def getChanges (fileName = 'changes.txt'):
 
 
 def implToReview ():
+	log_level = "INFO"
 	logger = logging.getLogger(__name__)
 	logger2 = logging.getLogger("maximo_gui_connector")
 
@@ -112,12 +113,12 @@ def implToReview ():
 
 	logger2.addHandler(logger_consoleHandler)
 
-	logger.setLevel(logging.INFO)
+	logger.setLevel(logging.INFO if not log_level == "DEBUG" else logging.DEBUG)
 	logger.propagate = False
 
 	
-	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
-	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level=log_level, logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level=log_level, logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
 	
 
 	# Get credentials
@@ -144,7 +145,7 @@ def implToReview ():
 	completed = 0
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
+		maximo = MGC.MaximoAutomation({ "debug": log_level == "DEBUG", "headless": True })
 		try:
 			maximo.login(USERNAME, PASSWORD)
 		except MaximoLoginFailed:
@@ -247,6 +248,18 @@ def implToReview ():
 								logger.error(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
 
 								foregroundDialog["buttons"]["Close"].click()
+								maximo.waitUntilReady()
+								break
+							
+							elif "The Change related to this task has been rescheduled." in foregroundDialog["text"]:
+								logger.error(f"Il change e' stato RISCHEDULATO e non e' ancora in IMPL. Lo salto")
+
+								foregroundDialog["buttons"]["Close"].click()
+								maximo.waitUntilReady()
+								break
+							
+							else:
+								logger.error(f"Trovato dialog inatteso di tipo '{foregroundDialog['type']}' con titolo '{foregroundDialog['title']}' e testo '{foregroundDialog['text']}'")
 								break
 
 							if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
@@ -265,8 +278,14 @@ def implToReview ():
 									logger2.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({taskRetryTimes} of 5 MAX)")
 									time.sleep(20)
 
+					except MaximoWorkflowError as e:
+						logger.error(f"Route Workflow fallito: comparso dialog 'Change SCHEDULED DATE is not reach to start Activity'")
+						logger.error(f"Solitamente questo e' dovuto ad una data di Target Start FUTURA. Controllare le date in cui e' stato schedulato il change")
+						break
+
 					except Exception as e:
 						logger2.exception(f"Errore in fase di cambio IMPL -> INPRG")
+						break
 
 					if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
 						browser.find_element_by_id("m15f1c9f0-pb").click()
@@ -295,7 +314,7 @@ def implToReview ():
 							time.sleep(3)
 
 							foregroundDialog = maximo.getForegroundDialog()
-							print(f"INPRG -> COMP: {foregroundDialog}")
+							# print(f"INPRG -> COMP: {foregroundDialog}")
 
 							if foregroundDialog:
 								if "Complete Workflow Assignment" in foregroundDialog["title"]:
@@ -304,7 +323,7 @@ def implToReview ():
 
 								# If change is not yet in INPRG status
 								elif "The change is not in status INPRG yet, please wait few seconds then try again." in foregroundDialog["text"]:
-									logger.error(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
+									logger.warning(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
 
 									foregroundDialog["buttons"]["Close"].click()
 									maximo.waitUntilReady()
