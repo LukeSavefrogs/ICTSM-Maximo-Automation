@@ -18,6 +18,9 @@ import logging
 import coloredlogs
 import shared.utils as utils
 
+from colorama import Fore, Back, Style
+
+
 import traceback
 import textwrap
 import re
@@ -173,19 +176,7 @@ def implToReview ():
 		for index, change in enumerate(CHANGES):
 			logger.info("Current change: {change} ({partial} of {total})".format(change=change, partial=index+1, total=len(CHANGES)))
 
-			browser.find_element_by_id("quicksearchQSMenuImage").click()
-			maximo.waitUntilReady()
-
-			browser.find_element_by_id("menu0_SEARCHMORE_OPTION_a_tnode").click()
-			maximo.waitUntilReady()
-
-			time.sleep(1.5)
-
-			maximo.setNamedInput({ "Parent:": change.strip() })
-
-			# Find with the provided filters
-			browser.find_element_by_id("maa8a5ebf-pb").click()
-			maximo.waitUntilReady()
+			maximo.advancedSearch({ "Parent:": change.strip() })
 
 			foregroundDialog = maximo.getForegroundDialog()
 			
@@ -257,9 +248,49 @@ def implToReview ():
 								foregroundDialog["buttons"]["Close"].click()
 								maximo.waitUntilReady()
 								break
+
+							elif all(token in foregroundDialog["text"] for token in ["Warning! The Approved Scheduled Window has expired!", "According to Global Standard Process it's necessary to RE-SCHEDULE this change."]):
+								logger.warning(f"Il change DEVE ESSERE RISCHEDULATO")
+
+								# Dialog di avviso
+								foregroundDialog["buttons"]["Close"].click()
+								maximo.waitUntilReady()
+
+								# Viene mostrato un altro dialog con due opzioni:
+								# - Rischedulare il change
+								# - Proseguire comunque 
+								anotherDialog = maximo.getForegroundDialog()
+								
+								# Se non trovo il dialog che mi aspetto, esce
+								if not anotherDialog:
+									logger.error(f"Non ho trovato nessun dialog (atteso il dialog per la rischedulazione)")
+									break
+								if anotherDialog["title"].strip() != "Manual Input":
+									logger.error(f"Non ho trovato il dialog per la rischedulazione (trovato dialog con titolo '{anotherDialog['title']}' e testo '{anotherDialog['text']}')")
+									
+									if "Close" in anotherDialog["buttons"]:
+										logger.info("Trovato pulsante 'Close'. Chiudo il dialog...")
+										anotherDialog["buttons"]["Close"].click()
+										maximo.waitUntilReady()
+
+									break
+
+								# Seleziono "Continue anyway"
+								browser.find_element_by_id("mc1493e00-rb").click()
+								anotherDialog["buttons"]["OK"].click()
+								maximo.waitUntilReady()
+								logger.info("Cliccato su 'Continue anyway'. Ora posso procedere normalmente...")
+					
+								# break
 							
 							else:
 								logger.error(f"Trovato dialog inatteso di tipo '{foregroundDialog['type']}' con titolo '{foregroundDialog['title']}' e testo '{foregroundDialog['text']}'")
+								
+								if "Close" in foregroundDialog["buttons"]:
+									logger.info("Trovato pulsante 'Close'. Chiudo il dialog...")
+									foregroundDialog["buttons"]["Close"].click()
+									maximo.waitUntilReady()
+
 								break
 
 							if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
@@ -368,6 +399,8 @@ def implToReview ():
 		)
 		print()
 
+		if maximo.debug: input ("Premi INVIO per continuare")
+
 		# Per evitare che se il programma dumpi troppo presto cercando di chiudere un oggetto non ancora instanziato
 		try:
 			maximo.close()
@@ -375,6 +408,7 @@ def implToReview ():
 			pass
 		
 		input("Premi INVIO per terminare il programma...")
+
 
 
 def closeAllReview(): 
@@ -504,6 +538,79 @@ def closeAllReview():
 		)
 
 
+		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
+		try:
+			maximo.close()
+		except NameError as e:
+			pass
+		
+		print()
+		input("Premi INVIO per terminare il programma...")
+
+
+def getAllOpen ():
+	logger = logging.getLogger(__name__)
+	logger2 = logging.getLogger("maximo_gui_connector")
+
+	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	
+
+	# Get credentials
+	CREDENTIALS_MANAGER = utils.Credentials(product_name="Maximo")
+	CRED_OBJ = CREDENTIALS_MANAGER.getCredentials()["data"]
+
+	# Get credentials
+	USERNAME, PASSWORD = CRED_OBJ["USERNAME"], CRED_OBJ["PASSWORD"]
+
+	try:
+		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
+		maximo.login(USERNAME, PASSWORD)
+	
+		# Here we are into the Home Page.
+		# We need to go to the Changes section...
+		maximo.goto_section("Changes")
+
+		# Search ONLY the open Changes...
+		maximo.advancedSearch({ 
+			"Status:": "=IMPL,=INPRG,=INPROG", 
+			"Is Task?": "N", 
+			"Customer:": "=WTI-00" 
+		})
+
+		maximo.setFilters({"Owner Group": "=V-OST-IT-SYO-OPS-TRENITALIA_ICTSM"})
+
+		# Get all the records in the table (and all the pages available)
+		records = maximo.getAllRecordsFromTable()
+
+		logger.info(f"Trovati {len(records)} change aperti con 'Owner Group' == 'V-OST-IT-SYO-OPS-TRENITALIA_ICTSM'\n")
+
+		# Used only for formatting purposes
+		unique_statuses = set([ record["data"]["Status"] for record in records ])
+		biggest_status = max(unique_statuses, key=len) if unique_statuses else ""
+
+		for index, change in enumerate(records):
+			change_id = change["data"]["Change"]
+			change_summary = change["data"]["Summary"].replace("\n", " ")
+			change_status = change["data"]["Status"]
+			change_date = change["data"]["Reported Date"]
+
+			print(f"[{str(index+1).rjust(len(str(len(records))))}/{len(records)}] {change_id} ({change_status.ljust(len(biggest_status))}) [Created on '{Fore.LIGHTCYAN_EX}{change_date}{Style.RESET_ALL}'] - {Fore.YELLOW}{change_summary}{Style.RESET_ALL}")
+
+
+		print()
+		if maximo.debug: input("Premi per eseguire il logout")
+
+		maximo.logout()
+	
+	except Exception as e:
+		logger.critical("Generic error during the script execution..." + str(e))
+		logger.exception(e)
+
+	except MaximoLoginFailed as e:
+		logger.critical(f"Couldn't login... Check the credentials stored in file `maximo_credentials.json`! {str(e)}")
+
+	finally:
 		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato
 		try:
 			maximo.close()
