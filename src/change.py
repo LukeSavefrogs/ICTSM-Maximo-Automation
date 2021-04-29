@@ -94,8 +94,9 @@ def getChanges (fileName = 'changes.txt'):
 	return array_data
 
 
-def implToReview ():
-	log_level = "INFO"
+def implToReview (verbose=False, show_browser=False):
+	log_level = "INFO" if not verbose else "DEBUG"
+
 	logger = logging.getLogger(__name__)
 	logger2 = logging.getLogger("maximo_gui_connector")
 
@@ -148,7 +149,7 @@ def implToReview ():
 	completed = 0
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": log_level == "DEBUG", "headless": True })
+		maximo = MGC.MaximoAutomation({ "debug": verbose, "headless": not show_browser })
 		try:
 			maximo.login(USERNAME, PASSWORD)
 		except MaximoLoginFailed:
@@ -411,7 +412,9 @@ def implToReview ():
 
 
 
-def closeAllReview(): 
+def closeAllReview(verbose=False, show_browser=False):
+	log_level = "INFO" if not verbose else "DEBUG"
+	
 	logger = logging.getLogger(__name__)
 	logger2 = logging.getLogger("maximo_gui_connector")
 
@@ -432,11 +435,11 @@ def closeAllReview():
 
 	logger2.addHandler(logger_consoleHandler)
 
-	logger.setLevel(logging.INFO)
+	logger.setLevel(logging.INFO if not verbose else logging.DEBUG)
 	logger.propagate = False
 
-	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
-	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level=log_level, logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level=log_level, logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
 	
 
 	# Get credentials
@@ -450,7 +453,7 @@ def closeAllReview():
 	CHANGES = []
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
+		maximo = MGC.MaximoAutomation({ "debug": verbose, "headless": not show_browser })
 		maximo.login(USERNAME, PASSWORD)
 
 		browser = maximo.driver

@@ -9,3 +9,5 @@ src/__pycache__/*
 src/changes.txt
 dist/changes.txt
 src/updateutils/__pycache__/updateUtils.cpython-38.pyc
+
+*.spec
