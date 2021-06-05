@@ -184,3 +184,4 @@ C:::::C              o::::o     o::::om::::m   m::::m   m::::m p:::::p     p::::
 		print("Automatic Compile\n")
 		compileScript("Change - Close all REVIEW")
 		compileScript("Change - IMPL to REVIEW")
+		compileScript("Change - Get all OPEN")

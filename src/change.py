@@ -26,11 +26,13 @@ import textwrap
 import re
 import inspect
 
+import pdb;
+
 # CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
-os.environ['WDM_LOG_LEVEL'] = '0'
-os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
+# os.environ['WDM_LOG_LEVEL'] = '0'
+# os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
 
 
 def getEntryPoint():
@@ -110,6 +112,7 @@ def implToReview (verbose=False, show_browser=False):
 
 	logger_fileHandler = logging.FileHandler(filename=logfile)
 	logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+	logger_fileHandler.setLevel(logging.INFO)
 
 	# Add handlers to the logger
 	logger.addHandler(logger_consoleHandler)
@@ -117,7 +120,6 @@ def implToReview (verbose=False, show_browser=False):
 
 	logger2.addHandler(logger_consoleHandler)
 
-	logger.setLevel(logging.INFO if not log_level == "DEBUG" else logging.DEBUG)
 	logger.propagate = False
 
 	
@@ -160,6 +162,8 @@ def implToReview (verbose=False, show_browser=False):
 			print("PASSWORD ERRATA".center(70))
 			print("----------------------------------------------------------------------")
 			CREDENTIALS_MANAGER.addFailedLoginAttempt()
+			
+			maximo.close()
 			
 			sys.exit(1)
 		else:
@@ -391,6 +395,9 @@ def implToReview (verbose=False, show_browser=False):
 	except Exception as e:
 		logger2.exception(f"Errore generico")
 		
+		logger2.debug("Starting Python debugger...")
+		pdb.set_trace()
+
 
 	finally:
 		print(
@@ -454,7 +461,22 @@ def closeAllReview(verbose=False, show_browser=False):
 
 	try:
 		maximo = MGC.MaximoAutomation({ "debug": verbose, "headless": not show_browser })
-		maximo.login(USERNAME, PASSWORD)
+		try:
+			maximo.login(USERNAME, PASSWORD)
+		except MaximoLoginFailed:
+			print("----------------------------------------------------------------------")
+			print("ATTENZIONE!".center(70))
+			print("IMPOSSIBILE PROSEGUIRE:".center(70))
+			print("")
+			print("PASSWORD ERRATA".center(70))
+			print("----------------------------------------------------------------------")
+			CREDENTIALS_MANAGER.addFailedLoginAttempt()
+			
+			maximo.close()
+			
+			sys.exit(1)
+		else:
+			CREDENTIALS_MANAGER.clearFailedLoginAttempts()
 
 		browser = maximo.driver
 	
@@ -530,6 +552,9 @@ def closeAllReview(verbose=False, show_browser=False):
 		logger.critical("Generic error during the script execution..." + str(e))
 		logger.exception(e)
 
+		logger2.debug("Starting Python debugger...")
+		pdb.set_trace()
+		
 	except MaximoLoginFailed as e:
 		logger.critical(f"Couldn't login... Check the credentials stored in file `maximo_credentials.json`! {str(e)}")
 
@@ -567,8 +592,23 @@ def getAllOpen ():
 	USERNAME, PASSWORD = CRED_OBJ["USERNAME"], CRED_OBJ["PASSWORD"]
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": False, "headless": True })
-		maximo.login(USERNAME, PASSWORD)
+		maximo = MGC.MaximoAutomation({ "debug": True, "headless": False })
+		try:
+			maximo.login(USERNAME, PASSWORD)
+		except MaximoLoginFailed:
+			print("----------------------------------------------------------------------")
+			print("ATTENZIONE!".center(70))
+			print("IMPOSSIBILE PROSEGUIRE:".center(70))
+			print("")
+			print("PASSWORD ERRATA".center(70))
+			print("----------------------------------------------------------------------")
+			CREDENTIALS_MANAGER.addFailedLoginAttempt()
+
+			maximo.close()
+			
+			sys.exit(1)
+		else:
+			CREDENTIALS_MANAGER.clearFailedLoginAttempts()
 	
 		# Here we are into the Home Page.
 		# We need to go to the Changes section...
