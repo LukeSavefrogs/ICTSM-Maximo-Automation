@@ -30,11 +30,6 @@ import pdb;
 
 # CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-# To remove '[WDM]' logs (https://github.com/SergeyPirogov/webdriver_manager#configuration)
-# os.environ['WDM_LOG_LEVEL'] = '0'
-# os.environ['WDM_PRINT_FIRST_LINE'] = 'False'
-
-
 def getEntryPoint():
 	is_executable = getattr(sys, 'frozen', False)
 	
@@ -576,12 +571,26 @@ def closeAllReview(verbose=False, show_browser=False):
 		input("Premi INVIO per terminare il programma...")
 
 
-def getAllOpen ():
+def getAllOpen (verbose=False, show_browser=False):
+	log_level = "INFO" if not verbose else "DEBUG"
+	
 	logger = logging.getLogger(__name__)
 	logger2 = logging.getLogger("maximo_gui_connector")
 
-	coloredlogs.install(level='INFO', logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
-	coloredlogs.install(level='INFO', logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	current_filename_no_ext = os.path.splitext(os.path.basename(getEntryPoint()))[0]
+
+
+	# logfile = os.path.join(CURRENT_DIR, f"{current_filename_no_ext}.log")
+
+	# logger_fileHandler = logging.FileHandler(filename=logfile)
+	# logger_fileHandler.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(process)d - %(levelname)s - %(message)s', datefmt='%d-%m-%y %H:%M:%S'))
+
+	# # Add handlers to the logger
+	# logger.setLevel(logging.INFO if not verbose else logging.DEBUG)
+	# logger.propagate = False
+
+	coloredlogs.install(level=log_level, logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+	coloredlogs.install(level=log_level, logger=logger2, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
 	
 
 	# Get credentials
@@ -592,7 +601,7 @@ def getAllOpen ():
 	USERNAME, PASSWORD = CRED_OBJ["USERNAME"], CRED_OBJ["PASSWORD"]
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": True, "headless": False })
+		maximo = MGC.MaximoAutomation({ "debug": verbose, "headless": not show_browser })
 		try:
 			maximo.login(USERNAME, PASSWORD)
 		except MaximoLoginFailed:
