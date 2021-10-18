@@ -5,8 +5,12 @@ name = "pypi"
 
 [packages]
 selenium = "*"
-maximo-gui-connector = "*"
+maximo-gui-connector = {editable = true, path = "./../maximo-gui-connector"}
 requests = "*"
+deprecated = "*"
+coloredlogs = "*"
+pyyaml = "*"
+packaging = "*"
 
 [dev-packages]
 

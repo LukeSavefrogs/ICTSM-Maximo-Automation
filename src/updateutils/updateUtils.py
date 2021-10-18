@@ -109,11 +109,19 @@ def checkUpdated(fileName):
 	print(f"- Remote: {url}")
 
 	if not os.path.exists(getCorrectPath(f"{fileName_noExt}.version")):
-		print(f"\n\nIl file LOCALE '{fileName_noExt}.version' non esiste.\nContattare lo sviluppatore (Caller: {fileName})\n\n")
+		print("\n\n")
+		print("ERRORE CRITICO:")
+		print(f"Il file LOCALE '{fileName_noExt}.version' non esiste.")
+		print(f"Contattare lo sviluppatore (Caller: {fileName})\n\n")
+		print("\n\n")
 
 		sys.exit(23)
 	elif not uri_exists_stream(url):
-		print(f"\n\nIl file REMOTO '{url}' non esiste.\nContattare lo sviluppatore (Caller: {fileName})\n\n")
+		print("\n\n")
+		print("ERRORE CRITICO:")
+		print(f"Il file REMOTO '{url}' non esiste.")
+		print(f"Contattare lo sviluppatore (Caller: {fileName})")
+		print("\n\n")
 		
 		sys.exit(23)
 	
@@ -124,6 +132,7 @@ def checkUpdated(fileName):
 	comp_vers = (requests.get(url)).text
 	diff = compare_versions(current_vers, comp_vers)
 
+	# print(f"Remote version: {comp_vers}")
 	if diff < 0:
 		print("-----------------------------------")
 		print("ATTENZIONE:")

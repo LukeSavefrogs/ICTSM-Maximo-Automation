@@ -1,9 +1,14 @@
-import os
-import sys
+import os, sys
 import inspect
 import json
 
+import logging
+
+from deprecated import deprecated
+
 from shared.cache import Cache
+
+logger = logging.getLogger(__name__)
 
 class Credentials (Cache):
 	FILENAME_TEMPLATE = "{product}_credentials.yaml"
@@ -22,6 +27,7 @@ class Credentials (Cache):
 		self.max_login_fails = max_login_fails if isinstance(max_login_fails, int) else 2
 
 		super().__init__(file_name, **kwds)
+		logger.info(f"Credential storage initialization completed successfully for product '{self.PRODUCT_NAME}' with {self.max_login_fails} MAX login failures")
 
 	def getCredentials(self):
 		if not self.exists():
@@ -150,3 +156,48 @@ def getCorrectPath(filePath):
 		# print(f"Final path: {file}\n")
 
 	return file
+
+
+# Description:
+#	Returns the path of where the script (or executable) is ACTUALLY located.
+#	It even works for frozen applications (like executables created with `pyinstaller`)
+#
+#	I tried `os.path.dirname(os.path.realpath(__file__))` but it returned the correct result only when 
+# 		the script was NOT frozen.
+#	A different but still working approach would have been `os.path.dirname(os.path.realpath(getEntryPoint()))`,,
+#		in which getEntryPoint() checks if script is frozen.
+#
+# From:
+#	https://stackoverflow.com/a/4943474/8965861
+#
+def get_entry_point():
+	"""Returns the name of the script currently running. 
+		It works both independent, launched from within a module or from a frozen script (with a 
+		tool like pyinstaller)
+
+	Returns:
+		str: The absolute path of the script/executable
+	"""
+	return os.path.realpath(sys.argv[0])
+
+def get_entry_point_dir():
+	"""Returns the directory of the script currently running. 
+		It works both independent, launched from within a module or from a frozen script (with a 
+		tool like pyinstaller)
+
+	Returns:
+		str: The absolute path of the directory the script/executable is placed in
+	"""
+	return os.path.dirname(get_entry_point())
+
+
+@deprecated("This function should not be used. Use `get_entry_point()` or `get_entry_point_dir()` instead...")
+def getEntryPoint():
+	is_executable = getattr(sys, 'frozen', False)
+	
+	if is_executable:
+		# print("Program is an executable")
+		return sys.executable
+
+	# print("Program is a script")
+	return inspect.stack()[-1][1]

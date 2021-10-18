@@ -3,6 +3,11 @@ import re
 import os
 import logging
 import sys
+import coloredlogs
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="INFO", logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+
 
 # ---------------------------------------------------------------------------------
 
@@ -68,7 +73,8 @@ def checkVersions (fileName):
 		rc = compare_versions(source_vers, compil_vers)
 
 		if rc == 0:
-			logging.error(f"ATTENZIONE: Versioni uguali. Se è stato modificato qualcosa, cambiare la versione corrente ({source_vers}) nel file '{source_vers_filename}' e riprovare...")
+			logging.warning(f"ATTENZIONE: Versioni uguali")
+			logging.warning(f"Se è stato modificato qualcosa, cambiare la versione corrente ({source_vers}) nel file '{source_vers_filename}' e riprovare")
 
 			return False
 
@@ -136,7 +142,7 @@ def compileScript(fileName):
 			updateVersions(fileName)
 			
 		else:
-			logging.error(f"ATTENZIONE: Errore durante la compilazione dello script '{fileName}'\n")
+			logging.critical(f"ATTENZIONE: Errore durante la compilazione dello script '{fileName}'\n")
 			logging.error(f"Return Code: {output.returncode}")
 			logging.error(f"StdErr stream: {output.stderr.decode('cp1252')}")
 
@@ -182,6 +188,5 @@ C:::::C              o::::o     o::::om::::m   m::::m   m::::m p:::::p     p::::
 		for file in cli_args: compileScript(file)
 	else:
 		print("Automatic Compile\n")
-		compileScript("Change - Close all REVIEW")
-		compileScript("Change - IMPL to REVIEW")
-		compileScript("Change - Get all OPEN")
+		for file in ["Change - Close all REVIEW", "Change - IMPL to REVIEW", "Change - Get all OPEN"]:
+			compileScript(file)
