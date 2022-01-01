@@ -18,7 +18,7 @@ if __name__ == "__main__":
 	current_filename_no_ext = os.path.splitext(os.path.basename(CURRENT_FILE))[0]
 
 	parser = argparse.ArgumentParser(description='Chiude tutti i change trovati in stato "REVIEW".')
-	parser.add_argument('-X', '--show_browser', dest='show_browser', action='store_true',
+	parser.add_argument('-X', '--show-browser', dest='show_browser', action='store_true',
 						help="Mostra l'interfaccia grafica di Maximo.")
 	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
 						help="Aumenta la verbosita' dell'output.")

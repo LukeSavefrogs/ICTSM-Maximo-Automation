@@ -2,6 +2,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
 
 import sys
 import os
@@ -226,11 +228,9 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 				return Array
 					.from(document.querySelectorAll("#mbb442a0c_tbod-co_0 .tablerow[id^='mbb442a0c_tbod_tdrow-tr[R:']"))
 					.map(el => {
-						let gruppo = el.querySelector("[id^='mbb442a0c_tdrow_[C:7]-c[R:']").innerText.trim();
-						let id = el.querySelector("[id^='mbb442a0c_tdrow_[C:1]-c[R:']").innerText.trim();
 						return {
-							"id": id,
-							"gruppo": gruppo
+							"id": el.querySelector("[id^='mbb442a0c_tdrow_[C:1]-c[R:']").innerText.trim(),
+							"gruppo": el.querySelector("[id^='mbb442a0c_tdrow_[C:7]-c[R:']").innerText.trim()
 						};
 					});
 			""")
@@ -262,33 +262,49 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 						);
 				""", row_task_id)
 
+				# Espandi il task solo se non lo è già
 				task_icon = task_row.find_element_by_css_selector("[id^='mbb442a0c_tdrow_[C:0]-c[R:']")
-				task_icon.click()
+				if task_icon.find_element_by_css_selector("a > img").get_attribute("source").strip() == "img_row_unselect":
+					task_icon.click()
 
 				maximo.waitUntilReady()
 				
 				tasks_contents = browser.find_elements_by_css_selector("#mbb442a0c_tdet-co_0")
 				task_id = maximo.getNamedInput("Task Id & Status:", context=tasks_contents).get_attribute("value").strip()
 
-				logger.debug(f"Cerco l'elemento 'Activity:'...")
-				task_id_elem = maximo.getNamedInput("Activity:", context=tasks_contents)
+				logger.debug(f"Cerco e clicco l'elemento 'Detail Menu' di fianco all'elemento 'Activity:'...")
+				detail_menu = maximo.getNamedInput("Activity:", context=tasks_contents)
+				
+				maximo.waitUntilReady()
 
-				logger.debug(f"Cerco l'elemento 'Detail Menu'...")
-				detail_menu_arrows = browser.execute_script("""
-					return arguments[0].nextElementSibling
-				""", task_id_elem)
+				# Scrollo fino a che non trovo l'elemento
+				ActionChains(browser).move_to_element(detail_menu).perform()
 
-				logger.debug(f"Clicco sull'elemento 'Detail Menu'...")
-				detail_menu_arrows.click()
+				# Clicco sull'immagine con le frecce
+				browser.execute_script("""
+					console.log("Clicco sull'elemento: %o", arguments[0].nextElementSibling);
+					arguments[0].nextElementSibling.click();
+				""", detail_menu)
 
 				maximo.waitUntilReady()
+
+				try:
+					WebDriverWait(browser, 5).until(EC.visibility_of_element_located((By.ID, "HYPERLINK_applink_undefined_a")))
+				except TimeoutException:
+					browser.execute_script("""
+						console.log("Clicco sull'elemento con id '%s': %o", arguments[0], document.getElementById(arguments[0]).nextElementSibling);
+						document.getElementById(arguments[0]).nextElementSibling.click();
+					""", detail_menu.get_attribute("id"))
 				
 				# Cerco e clicco il context "Go To Activities and Tasks(MP)"
 				logger.debug(f"Cerco e clicco il context 'Go To Activities and Tasks(MP)'...")
-				WebDriverWait(browser, 5).until(EC.visibility_of_element_located((By.ID, "HYPERLINK_applink_undefined_a")))
 				browser.execute_script("""
-					return Array.from(document.querySelectorAll('#menuholder #HYPERLINK_applink_undefined_a')).find(el => el.innerText.trim() == "Go To Activities and Tasks(MP)")
-				""").click()
+					const target_text = arguments[0];
+					Array
+						.from(document.querySelectorAll('#menuholder #HYPERLINK_applink_undefined_a'))
+						.find(el => el.innerText.trim() == target_text)
+						.click();
+				""", "Go To Activities and Tasks(MP)")
 				
 				maximo.waitUntilReady()
 
@@ -308,8 +324,8 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 				# Go back
 				logger.debug("Torno al Change principale")
 				browser.execute_script("""
-					return Array.from(document.querySelectorAll("#psuedoForm > .bottomApp > .linkedAppTitle > a")).find(el => el.innerText.trim() == arguments[0])
-				""", "Changes (MP)").click()
+					return Array.from(document.querySelectorAll("#psuedoForm .bottomApp > .linkedAppTitle > a")).find(el => el.innerText.trim() == arguments[0]).click()
+				""", "Changes (MP)")
 				
 				maximo.waitUntilReady()
 				WebDriverWait(browser, 5).until(EC.visibility_of_element_located((By.ID, "mbb442a0c_tbod-co_0")))
@@ -348,26 +364,229 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 
 
 
-def close_task(maximo, owner_username, max_retries_inprg_comp = 3, max_retries_impl_inprg = 3):
+def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_comp = 3, max_retries_impl_inprg = 3):
 	browser = maximo.driver
+
+	# Se il task è già in stato 'COMP', allora esci con return code positivo
 	status = maximo.getNamedInput("Status:").get_attribute('value').upper()
 	if status == "COMP":
 		logger.info(f"Il task si trova gia' in stato 'COMP'\n")
 
 		return True
 
-	new_status_id = "#" + maximo.getNamedInput("New Status:").get_attribute('id')
 			
-	if not maximo.isInputEditable(new_status_id):
+	# Se il campo di 'New Status:' non è modificabile significa che non possiamo modificarlo
+	new_status_id = maximo.getNamedInput("New Status:").get_attribute('id')
+	if not maximo.isInputEditable(f"#{new_status_id}"):
 		logger.error(f"Non hai abbastanza permessi!\n")
-		
 		return False
+
 	
-	taskRetryTimes = 0
+	status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
+	logger.debug(f"Current status: {status}")
+
+	# Inizializzo i contatori
+	cur_retries_impl_inprg = 0
+	cur_retries_inprg_comp = 0
+
+
+	if status == "IMPL":
+		new_status = status
+		while new_status == status:
+			# Se supera i tentatvi massimi
+			if cur_retries_impl_inprg == max_retries_impl_inprg:
+				logger.error(f"({cur_retries_impl_inprg} of {max_retries_impl_inprg} MAX)")
+				return False
+
+			# Incrementa il contatore
+			cur_retries_impl_inprg += 1
+
+
+			# Imposta il nuovo Status 'INPRG'
+			maximo.setNamedInput({ 
+				"New Status:": "INPRG", 
+				"Task Owner:": owner_username 
+			})
+			
+			time.sleep(1)
+
+
+			# Provo a salvare
+			try:
+				maximo.clickRouteWorkflow()
+			except MaximoWorkflowError as e:
+				logger.error(f"Route Workflow fallito: comparso dialog 'Change SCHEDULED DATE is not reach to start Activity'")
+				logger.error(f"Solitamente questo e' dovuto ad una data di Target Start FUTURA. Controllare le date in cui e' stato schedulato il change")
+				break
+
+			except Exception as e:
+				logger.exception(f"Errore in fase di cambio IMPL -> INPRG")
+				return False
+
+			maximo.waitUntilReady()
+
+			# Controllo se sono usciti dei Dialog
+			foregroundDialog = maximo.getForegroundDialog()
+			
+			if foregroundDialog:
+				if "Complete Workflow Assignment" in foregroundDialog["title"]:
+					foregroundDialog["buttons"]["OK"].click()
+					maximo.waitUntilReady()
+
+				elif "Please verify that TASK has a valid schedule start" in foregroundDialog["text"]:
+					logger.error(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
+
+					foregroundDialog["buttons"]["Close"].click()
+					maximo.waitUntilReady()
+					return False
+				
+				elif "The Change related to this task has been rescheduled." in foregroundDialog["text"]:
+					logger.error(f"Il change e' stato RISCHEDULATO e non e' ancora in IMPL. Lo salto")
+
+					foregroundDialog["buttons"]["Close"].click()
+					maximo.waitUntilReady()
+					return False
+
+
+				elif all(token in foregroundDialog["text"] for token in ["Warning! The Approved Scheduled Window has expired!", "According to Global Standard Process it's necessary to RE-SCHEDULE this change."]):
+					logger.warning(f"Il change DEVE ESSERE RISCHEDULATO")
+
+					# Dialog di avviso
+					foregroundDialog["buttons"]["Close"].click()
+					maximo.waitUntilReady()
+
+					# Viene mostrato un altro dialog con due opzioni:
+					# - Rischedulare il change
+					# - Proseguire comunque 
+					anotherDialog = maximo.getForegroundDialog()
+					
+					# Se non trovo il dialog che mi aspetto, esce
+					if not anotherDialog:
+						logger.error(f"Non ho trovato nessun dialog (atteso il dialog per la rischedulazione)")
+						return False
+
+					if anotherDialog["title"].strip() != "Manual Input":
+						logger.error(f"Non ho trovato il dialog per la rischedulazione (trovato dialog con titolo '{anotherDialog['title']}' e testo '{anotherDialog['text']}')")
+						
+						if "Close" in anotherDialog["buttons"]:
+							logger.warning("Trovato pulsante 'Close'. Chiudo il dialog...")
+							anotherDialog["buttons"]["Close"].click()
+							maximo.waitUntilReady()
+
+						return False
+
+					# Seleziono "Continue anyway"
+					browser.find_element_by_id("mc1493e00-rb").click()
+					anotherDialog["buttons"]["OK"].click()
+					maximo.waitUntilReady()
+					logger.info("Cliccato su 'Continue anyway'. Ora posso procedere normalmente...")
+		
+					break
+				
+				else:
+					logger.error(f"Trovato dialog inatteso di tipo '{foregroundDialog['type']}' con titolo '{foregroundDialog['title']}' e testo '{foregroundDialog['text']}'")
+					
+					if "Close" in foregroundDialog["buttons"]:
+						logger.info("Trovato pulsante 'Close'. Chiudo il dialog...")
+						foregroundDialog["buttons"]["Close"].click()
+						maximo.waitUntilReady()
+
+					return False
+
+					
+				if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
+					msg_box_text = maximo.driver.find_element_by_id("mb_msg").get_attribute("innerText").strip()
+
+					if "Change SCHEDULED DATE is not reach to start Activity" in msg_box_text:
+						btn_close = maximo.driver.find_element_by_id("m15f1c9f0-pb")
+						btn_close.click()
+
+						maximo.waitUntilReady()
+						
+						logger.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({cur_retries_impl_inprg} of {max_retries_impl_inprg} MAX)")
+						time.sleep(20)
+						continue
+				
+
+			if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
+				browser.find_element_by_id("m15f1c9f0-pb").click()
+				maximo.waitUntilReady()
+				browser.find_element_by_id("mc1493e00-rb").click()
+				maximo.waitUntilReady()
+				browser.find_element_by_id("m37917b04-pb").click()
+				maximo.waitUntilReady()
+
+			time.sleep(3)
+			new_status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
+	
+	status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
+	if status == "INPRG":
+		new_status = status
+		while new_status == status:
+			try:
+				while cur_retries_inprg_comp < max_retries_inprg_comp:
+					cur_retries_inprg_comp += 1
+
+					maximo.setNamedInput({ "New Status:": "COMP", "Task Completion Code:": "COMPLETE" })
+
+					time.sleep(1.5)
+
+					logger.debug("Clicco sul pulsante 'Route WF' in alto")
+
+					maximo.clickRouteWorkflow()
+					time.sleep(3)
+					maximo.waitUntilReady()
+
+					foregroundDialog = maximo.getForegroundDialog()
+
+					if not foregroundDialog:
+						break
+
+					if "Complete Workflow Assignment" in foregroundDialog["title"]:
+						foregroundDialog["buttons"]["OK"].click()
+						maximo.waitUntilReady()
+						break
+
+					# If change is not yet in INPRG status
+					elif "The change is not in status INPRG yet, please wait few seconds then try again." in foregroundDialog["text"]:
+						logger.warning(f"Comparso dialog: 'Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}'")
+
+						foregroundDialog["buttons"]["Close"].click()
+						maximo.waitUntilReady()
+
+						logger.info(f"Riprovo in 10 secondi ({cur_retries_inprg_comp} tentativi su {max_retries_inprg_comp} MAX)")
+						time.sleep(10)
+
+				else:
+					logger.error(f"Reached maximum retries number ({max_retries_inprg_comp}) while trying to go from INPRG to COMP")
+
+					return False
+			except MaximoWorkflowError as e:
+				logger.exception(str(e))
+				break
+		
+			new_status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
+
+	status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
+	if status == "COMP":
+		logger.info(f"Il task è ora in stato 'COMP'\n")
+		return True
+
+	return False
+
+
+	## VECCHIA VERSIONE (funzionante)
+	cur_retries_impl_inprg = 0
+	cur_retries_inprg_comp = 0
 	while True:
-		status = maximo.getNamedInput("Status:").get_attribute('value').upper()
+		status = maximo.getNamedInput("Status:").get_attribute('value').strip().upper()
 
 		logger.debug(f"Current status: {status}")
+		
+		# Interrompe il loop se è riusito a portare il task in stato 'COMP'
+		if status == "COMP":
+			logger.info(f"Il task è ora in stato 'COMP'\n")
+			break
 		
 		if status == "IMPL":
 			maximo.setNamedInput({ 
@@ -379,7 +598,7 @@ def close_task(maximo, owner_username, max_retries_inprg_comp = 3, max_retries_i
 			
 
 			try:
-				taskRetryTimes += 1
+				cur_retries_impl_inprg += 1
 				maximo.clickRouteWorkflow()
 
 				foregroundDialog = maximo.getForegroundDialog()
@@ -457,11 +676,11 @@ def close_task(maximo, owner_username, max_retries_inprg_comp = 3, max_retries_i
 
 							maximo.waitUntilReady()
 
-							if taskRetryTimes > max_retries_impl_inprg:
+							if cur_retries_impl_inprg > max_retries_impl_inprg:
 								logger.error(f"Cannot change Task from IMPL to INPRG")
 								break
 
-							logger.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({taskRetryTimes} of {max_retries_impl_inprg} MAX)")
+							logger.warning(f"Schedule Start not reached. Retrying in 20 seconds... ({cur_retries_impl_inprg} of {max_retries_impl_inprg} MAX)")
 							time.sleep(20)
 
 			except MaximoWorkflowError as e:
@@ -484,40 +703,42 @@ def close_task(maximo, owner_username, max_retries_inprg_comp = 3, max_retries_i
 			time.sleep(3)
 
 		elif status == "INPRG":
-			retryTimes = 0
 			try:
-				while retryTimes < max_retries_inprg_comp:
-					retryTimes += 1
+				while cur_retries_inprg_comp < max_retries_inprg_comp:
+					cur_retries_inprg_comp += 1
 
 					maximo.setNamedInput({ "New Status:": "COMP", "Task Completion Code:": "COMPLETE" })
 
 					time.sleep(1.5)
 
-					if maximo.debug: logger.debug("Clicking on Route WF")
+					logger.debug("Clicco sul pulsante 'Route WF' in alto")
 
 					maximo.clickRouteWorkflow()
 					time.sleep(3)
+					maximo.waitUntilReady()
 
 					foregroundDialog = maximo.getForegroundDialog()
 					# print(f"INPRG -> COMP: {foregroundDialog}")
 
-					if foregroundDialog:
-						if "Complete Workflow Assignment" in foregroundDialog["title"]:
-							foregroundDialog["buttons"]["OK"].click()
-							maximo.waitUntilReady()
 
-						# If change is not yet in INPRG status
-						elif "The change is not in status INPRG yet, please wait few seconds then try again." in foregroundDialog["text"]:
-							logger.warning(f"Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}")
+					if not foregroundDialog:
+						break
 
-							foregroundDialog["buttons"]["Close"].click()
-							maximo.waitUntilReady()
+					if "Complete Workflow Assignment" in foregroundDialog["title"]:
+						foregroundDialog["buttons"]["OK"].click()
+						maximo.waitUntilReady()
+						break
 
-							if maximo.debug: logger.debug(f"Task is not yet in INPRG status: retrying in 10 seconds ({retryTimes} attempt of {max_retries_inprg_comp} MAX)")
-							time.sleep(10)
+					# If change is not yet in INPRG status
+					elif "The change is not in status INPRG yet, please wait few seconds then try again." in foregroundDialog["text"]:
+						logger.warning(f"Comparso dialog: 'Cannot change Task from IMPL to INPRG: {foregroundDialog['text']}'")
 
-							continue
-					break
+						foregroundDialog["buttons"]["Close"].click()
+						maximo.waitUntilReady()
+
+						logger.info(f"Riprovo in 10 secondi ({cur_retries_inprg_comp} tentativi su {max_retries_inprg_comp} MAX)")
+						time.sleep(10)
+
 				else:
 					logger.error(f"Reached maximum retries number ({max_retries_inprg_comp}) while trying to go from INPRG to COMP")
 
@@ -525,16 +746,13 @@ def close_task(maximo, owner_username, max_retries_inprg_comp = 3, max_retries_i
 			except MaximoWorkflowError as e:
 				logger.exception(str(e))
 				break
-		elif status == "COMP":
-			logger.info(f"Il task è ora in stato 'COMP'\n")
 			
-			break
 		else:
 			logger.error(f"Status {status} not handled by the script!\n")
 
 			break
 
-		if maximo.debug: logger.debug(f"Finished current status cycle... Getting next status")
+		logger.debug(f"Finished current status cycle... Getting next status")
 
 
 def closeAllReview(verbose=False, show_browser=False):
