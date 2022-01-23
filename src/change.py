@@ -3,7 +3,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 
 import sys
 import os
@@ -13,24 +13,23 @@ import maximo_gui_connector as MGC
 from maximo_gui_connector import MaximoWorkflowError, MaximoLoginFailed
 from maximo_gui_connector.constants import SUPPORTED_BROWSERS
 
-import json
 import time
 
 import shared.utils as utils
 
-import logging, coloredlogs
+import logging
 logger = logging.getLogger("maximo4ictsm")
 
 from colorama import Fore, Back, Style
 
-
-import traceback
-import textwrap
-import re
 import inspect
 
-# import pdb;
+import tempfile
 
+from pathlib import Path
+
+
+import rich
 
 def getEntryPoint():
 	is_executable = getattr(sys, 'frozen', False)
@@ -44,6 +43,7 @@ def getEntryPoint():
 
 
 # OLD - Don't use!
+# @deprecated
 def implToReview (change_list: list, verbose=False, show_browser=False):
 	# Get credentials
 	CREDENTIALS_MANAGER = utils.Credentials(product_name="Maximo")
@@ -92,12 +92,12 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 			if foregroundDialog and "No records were found that match the specified query" in foregroundDialog["text"]:
 				logger.info(f"Parent Change {change} is already in CLOSED status (not open Tasks found)\n")
 
-				browser.find_element_by_id("m88dbf6ce-pb").click()
+				browser.find_element(By.ID, "m88dbf6ce-pb").click()
 				maximo.waitUntilReady()
 
 				continue
 
-			if not browser.find_elements_by_id("m714e5172-tb"):
+			if not browser.find_elements(By.ID, "m714e5172-tb"):
 				tasks = maximo.getAllRecordsFromTable()
 				logger.error(f"Found {len(tasks)} tasks in total. The script, as of now, only accepts changes with a single task. Skipping...\n")
 				continue
@@ -144,7 +144,8 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 	completed = 0
 
 	try:
-		maximo = MGC.MaximoAutomation({ "debug": verbose, "headless": not show_browser })
+		maximo = MGC.MaximoAutomation(window_size=(1920, 1080), config={ "debug": verbose, "headless": not show_browser })
+
 		try:
 			maximo.login(USERNAME, PASSWORD)
 		except MaximoLoginFailed:
@@ -167,9 +168,12 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 		INPRG_MAX_RETRIES = 5
 		completed = 0
 
+
 		# Here we are into the Home Page.
 		# We need to go to the Changes section...
 		maximo.goto_section("Changes")
+
+		print()
 
 		for index, change in enumerate(change_list):
 			logger.info("In corso: {change} ({partial} di {total})".format(change=change, partial=index+1, total=len(change_list)))
@@ -179,15 +183,16 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 
 			foregroundDialog = maximo.getForegroundDialog()
 			
-			# If change was already CLOSED (not REVIEW)
+			# Se il change NON ESISTE
 			if foregroundDialog and "No records were found that match the specified query" in foregroundDialog["text"]:
-				logger.error(f"Il Change '{change}' NON esiste\n")
+				logger.error(f"Il Change '{change}' NON esiste. Procedo con il prossimo.\n")
 
-				print(foregroundDialog)
+				logger.debug(foregroundDialog)
+				
 				try:
 					foregroundDialog["buttons"]["OK"].click()
 				except:
-					browser.find_element_by_id("m88dbf6ce-pb").click()
+					browser.find_element(By.ID, "m88dbf6ce-pb").click()
 
 				maximo.waitUntilReady()
 
@@ -204,27 +209,43 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 			maximo.waitUntilReady()
 			maximo.routeWorkflowDialog.closeDialog()
 
-			logger.info(f"Il Change {change} si trova in stato '{current_status}'\n")
+			logger.info(f"Il Change {change} si trova in stato '{current_status}'")
 
 			# ------------- 
 			if current_status in ["REVIEW", "CLOSE", "CAN"]:
+				logger.info(f"Nessuna azione necessaria\n")
 				continue
+			
 			elif current_status in ["NEW"]:
 				submitter = maximo.getNamedInput('Submitter:').get_attribute('value').strip()
 				submitter_name = maximo.getNamedInput('Submitter Name:').get_attribute('value').strip()
-				logger.error(f"Il change e' ancora in stato NEW! Contattare il Submitter '{submitter_name}' ({submitter})")
+				
+				logger.critical(f"Il change e' ancora in stato NEW!")
+				logger.error(f"Contattare il Submitter '{submitter_name}' ({submitter}) oppure avanzare il change manualmente.\n")
 				continue
+
 			elif current_status in ["ACC_CAT"]:
 				submitter = maximo.getNamedInput('Submitter:').get_attribute('value').strip()
 				submitter_name = maximo.getNamedInput('Submitter Name:').get_attribute('value').strip()
-				logger.error(f"Change SENZA TASK: Il change aperto da '{submitter_name}' ({submitter}) si trova ancora in stato di '{current_status}'. Portarlo in stato di IMPL e poi rilanciare lo script. Al momento lo salto!")
+				
+				logger.critical(f"Change SENZA TASK: Il change aperto da '{submitter_name}' ({submitter}) si trova ancora in stato di '{current_status}'.")
+				logger.error(f"Portarlo in stato di IMPL e poi rilanciare lo script. Al momento lo salto!\n")
 				continue
+			
+			elif current_status not in ["IMPL", "INPRG"]:
+				submitter = maximo.getNamedInput('Submitter:').get_attribute('value').strip()
+				submitter_name = maximo.getNamedInput('Submitter Name:').get_attribute('value').strip()
+
+				logger.critical(f"Stato '{current_status}' NON VALIDO oppure non gestito dallo script.")
+				logger.error(f"Contattare '{submitter_name}' ({submitter}) se si dovesse trattare di un errore oppure controllare manualmente.\n")
+				continue
+
 
 			maximo.goto_tab("Schedule")
 			maximo.waitUntilReady()
 
 			# Prende una lista di TUTTI i task legati al Change
-			tasks = browser.execute_script("""
+			tasks_object = browser.execute_script("""
 				return Array
 					.from(document.querySelectorAll("#mbb442a0c_tbod-co_0 .tablerow[id^='mbb442a0c_tbod_tdrow-tr[R:']"))
 					.map(el => {
@@ -235,20 +256,18 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 					});
 			""")
 
-			print(tasks)
-
 			# Se non sono presenti Task
-			if len(tasks) == 0:
+			if len(tasks_object) == 0:
 				logger.error("Il change non ha ancora nessun Task aperto")
 				continue
 
-			task_ids = [ task["id"] for task in tasks if task["gruppo"] == "V-OST-IT-SYO-OPS-TRENITALIA_ICTSM" ]
+			task_ids = [ task["id"] for task in tasks_object if task["gruppo"] == "V-OST-IT-SYO-OPS-TRENITALIA_ICTSM" ]
 
 			if len(task_ids) == 0:
 				logger.warning("Il change NON contiene Task in carico al Team ICTSM!")
 				continue
 
-			logger.info(f"Trovati {len(task_ids)} task in carico al gruppo ICTSM (su {len(tasks)} totali)")
+			logger.info(f"Trovati {len(task_ids)} task in carico al gruppo ICTSM ({len(tasks_object)} totali) {tasks_object}")
 
 			for row_task_id in task_ids:
 				logger.debug(f"Espando task n.{row_task_id}")
@@ -263,22 +282,32 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 				""", row_task_id)
 
 				# Espandi il task solo se non lo è già
-				task_icon = task_row.find_element_by_css_selector("[id^='mbb442a0c_tdrow_[C:0]-c[R:']")
-				if task_icon.find_element_by_css_selector("a > img").get_attribute("source").strip() == "img_row_unselect":
+				task_icon = task_row.find_element(By.CSS_SELECTOR, "[id^='mbb442a0c_tdrow_[C:0]-c[R:']")
+				if task_icon.find_element(By.CSS_SELECTOR, "a > img").get_attribute("source").strip() == "img_row_unselect":
 					task_icon.click()
 
 				maximo.waitUntilReady()
 				
-				tasks_contents = browser.find_elements_by_css_selector("#mbb442a0c_tdet-co_0")
-				task_id = maximo.getNamedInput("Task Id & Status:", context=tasks_contents).get_attribute("value").strip()
+				for retry in range(0, 3):
+					try:
+						tasks_contents = browser.find_elements(By.CSS_SELECTOR, "#mbb442a0c_tdet-co_0")
+						task_id = maximo.getNamedInput("Task Id & Status:", context=tasks_contents).get_attribute("value").strip()
 
-				logger.debug(f"Cerco e clicco l'elemento 'Detail Menu' di fianco all'elemento 'Activity:'...")
-				detail_menu = maximo.getNamedInput("Activity:", context=tasks_contents)
+						logger.debug(f"Cerco e clicco l'elemento 'Detail Menu' di fianco all'elemento 'Activity:'...")
+						
+						detail_menu = maximo.getNamedInput("Activity:", context=tasks_contents)
+						
+						maximo.waitUntilReady()
+
+						# Scrollo fino a che non trovo l'elemento
+						ActionChains(browser).move_to_element(detail_menu).perform()
+					except StaleElementReferenceException as e:
+						logger.debug(f"StaleElementReferenceException => Non sono riuscito a trovare il menu dei dettagli (tentativo {retry} su 3)")
+					else:
+						break
+				else:
+					logger.exception("Non sono riuscito ad espandere le freccette per accedere al Task", extra={"tracebacks_show_locals": True})
 				
-				maximo.waitUntilReady()
-
-				# Scrollo fino a che non trovo l'elemento
-				ActionChains(browser).move_to_element(detail_menu).perform()
 
 				# Clicco sull'immagine con le frecce
 				browser.execute_script("""
@@ -313,7 +342,7 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 
 				# time.sleep(1)
 
-				print(maximo.getNamedInput("Status:").get_attribute("value"))
+				logger.info("Status: " + maximo.getNamedInput("Status:").get_attribute("value"))
 				
 				time.sleep(1)
 
@@ -338,18 +367,26 @@ def implToReview (change_list: list, verbose=False, show_browser=False):
 		maximo.logout()
 	
 	except Exception as e:
-		logger.exception(f"Errore generico")
+		logger.exception(f"Errore generico durante il cambio da IMPL a REVIEW")
+
+		with tempfile.TemporaryFile() as tmp_file:
+			path_to_image = str(Path(f"{tmp_file.name}.png").absolute())
+			logger.info(f"Salvo screenshot in '{path_to_image}'")
+			maximo.driver.save_screenshot(path_to_image)
+			
+			if sys.platform == "win32" and str(USERNAME).upper() == "ITY9DN3D":
+				logger.info(f"Apro screenshot: '{path_to_image}'")
+				os.startfile(path_to_image)
+
+		
 		
 		# logger_mgc.debug("Starting Python debugger...")
 		# pdb.set_trace()
 
 
 	finally:
-		print(
-			"\n----------------------------------------------------------------------\n" +
-			f"Sono stati portati in REVIEW {completed}/{len(change_list)} change".center(70) + 
-			"\n----------------------------------------------------------------------\n"
-		)
+		rich.print(rich.panel.Panel(rich.align.Align(f"Sono stati portati in REVIEW {completed}/{len(change_list)} change", align="center"), title="Risultati", padding=2))
+		
 		print()
 
 		if maximo.debug: input ("Premi INVIO per continuare")
@@ -420,7 +457,7 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 				break
 
 			except Exception as e:
-				logger.exception(f"Errore in fase di cambio IMPL -> INPRG")
+				logger.exception(f"Errore in fase di cambio di stato del Task da 'IMPL' a 'INPRG'")
 				return False
 
 			maximo.waitUntilReady()
@@ -476,7 +513,7 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 						return False
 
 					# Seleziono "Continue anyway"
-					browser.find_element_by_id("mc1493e00-rb").click()
+					browser.find_element(By.ID, "mc1493e00-rb").click()
 					anotherDialog["buttons"]["OK"].click()
 					maximo.waitUntilReady()
 					logger.info("Cliccato su 'Continue anyway'. Ora posso procedere normalmente...")
@@ -484,7 +521,7 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 					break
 				
 				else:
-					logger.error(f"Trovato dialog inatteso di tipo '{foregroundDialog['type']}' con titolo '{foregroundDialog['title']}' e testo '{foregroundDialog['text']}'")
+					logger.critical(f"Trovato dialog inatteso di tipo '{foregroundDialog['type']}' con titolo '{foregroundDialog['title']}' e testo '{foregroundDialog['text']}'")
 					
 					if "Close" in foregroundDialog["buttons"]:
 						logger.info("Trovato pulsante 'Close'. Chiudo il dialog...")
@@ -494,11 +531,11 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 					return False
 
 					
-				if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
-					msg_box_text = maximo.driver.find_element_by_id("mb_msg").get_attribute("innerText").strip()
+				if maximo.driver.find_elements(By.ID, "msgbox-dialog_inner"):
+					msg_box_text = maximo.driver.find_element(By.ID, "mb_msg").get_attribute("innerText").strip()
 
 					if "Change SCHEDULED DATE is not reach to start Activity" in msg_box_text:
-						btn_close = maximo.driver.find_element_by_id("m15f1c9f0-pb")
+						btn_close = maximo.driver.find_element(By.ID, "m15f1c9f0-pb")
 						btn_close.click()
 
 						maximo.waitUntilReady()
@@ -508,12 +545,12 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 						continue
 				
 
-			if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
-				browser.find_element_by_id("m15f1c9f0-pb").click()
+			if browser.find_elements(By.ID, "m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element(By.ID, "mb_msg").get_attribute("innerText"):
+				browser.find_element(By.ID, "m15f1c9f0-pb").click()
 				maximo.waitUntilReady()
-				browser.find_element_by_id("mc1493e00-rb").click()
+				browser.find_element(By.ID, "mc1493e00-rb").click()
 				maximo.waitUntilReady()
-				browser.find_element_by_id("m37917b04-pb").click()
+				browser.find_element(By.ID, "m37917b04-pb").click()
 				maximo.waitUntilReady()
 
 			time.sleep(3)
@@ -572,10 +609,13 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 		logger.info(f"Il task è ora in stato 'COMP'\n")
 		return True
 
+	logger.error("Il task NON E' ANCORA in stato 'COMP'!")
+	logger.exception("Probabilmente qualcosa e' andato storto da qualche parte")
+
 	return False
 
 
-	## VECCHIA VERSIONE (funzionante)
+	## VECCHIA VERSIONE (funzionante btw)
 	cur_retries_impl_inprg = 0
 	cur_retries_inprg_comp = 0
 	while True:
@@ -650,7 +690,7 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 							break
 
 						# Seleziono "Continue anyway"
-						browser.find_element_by_id("mc1493e00-rb").click()
+						browser.find_element(By.ID, "mc1493e00-rb").click()
 						anotherDialog["buttons"]["OK"].click()
 						maximo.waitUntilReady()
 						logger.info("Cliccato su 'Continue anyway'. Ora posso procedere normalmente...")
@@ -667,11 +707,11 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 
 						break
 
-					if maximo.driver.find_elements_by_id("msgbox-dialog_inner"):
-						msg_box_text = maximo.driver.find_element_by_id("mb_msg").get_attribute("innerText").strip()
+					if maximo.driver.find_elements(By.ID, "msgbox-dialog_inner"):
+						msg_box_text = maximo.driver.find_element(By.ID, "mb_msg").get_attribute("innerText").strip()
 
 						if "Change SCHEDULED DATE is not reach to start Activity" in msg_box_text:
-							btn_close = maximo.driver.find_element_by_id("m15f1c9f0-pb")
+							btn_close = maximo.driver.find_element(By.ID, "m15f1c9f0-pb")
 							btn_close.click()
 
 							maximo.waitUntilReady()
@@ -692,12 +732,12 @@ def close_task(maximo: MGC.MaximoAutomation, owner_username, max_retries_inprg_c
 				logger.exception(f"Errore in fase di cambio IMPL -> INPRG")
 				break
 
-			if browser.find_elements_by_id("m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
-				browser.find_element_by_id("m15f1c9f0-pb").click()
+			if browser.find_elements(By.ID, "m15f1c9f0-pb") and "The Approved Scheduled Window has expired" in browser.find_element(By.ID, "mb_msg").get_attribute("innerText"):
+				browser.find_element(By.ID, "m15f1c9f0-pb").click()
 				maximo.waitUntilReady()
-				browser.find_element_by_id("mc1493e00-rb").click()
+				browser.find_element(By.ID, "mc1493e00-rb").click()
 				maximo.waitUntilReady()
-				browser.find_element_by_id("m37917b04-pb").click()
+				browser.find_element(By.ID, "m37917b04-pb").click()
 				maximo.waitUntilReady()
 
 			time.sleep(3)

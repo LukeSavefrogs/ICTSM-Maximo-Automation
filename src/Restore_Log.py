@@ -164,10 +164,10 @@ def downloadRestoreTemplate(CHANGE_NUM):
 
 		maximo.goto_section("Activities and Tasks")
 
-		browser.find_element_by_id("quicksearchQSMenuImage").click()
+		browser.find_element(By.ID, "quicksearchQSMenuImage").click()
 		maximo.waitUntilReady()
 
-		browser.find_element_by_id("menu0_SEARCHMORE_OPTION_a_tnode").click()
+		browser.find_element(By.ID, "menu0_SEARCHMORE_OPTION_a_tnode").click()
 		maximo.waitUntilReady()
 
 		time.sleep(1.5)
@@ -176,19 +176,19 @@ def downloadRestoreTemplate(CHANGE_NUM):
 		maximo.setNamedInput({ "Parent:": CHANGE_NUM.strip() })
 
 		# Find with the provided filters
-		browser.find_element_by_id("maa8a5ebf-pb").click()
+		browser.find_element(By.ID, "maa8a5ebf-pb").click()
 		maximo.waitUntilReady()
 
 		# If change was already CLOSED (not REVIEW)
-		if browser.find_elements_by_id("m88dbf6ce-pb") and "No records were found that match the specified query" in browser.find_element_by_id("mb_msg").get_attribute("innerText"):
+		if browser.find_elements(By.ID, "m88dbf6ce-pb") and "No records were found that match the specified query" in browser.find_element(By.ID, "mb_msg").get_attribute("innerText"):
 			logger.info(f"Parent Change {CHANGE_NUM} is already in CLOSED status (not open Tasks found)\n")
 
-			browser.find_element_by_id("m88dbf6ce-pb").click()
+			browser.find_element(By.ID, "m88dbf6ce-pb").click()
 			maximo.waitUntilReady()
 
 			sys.exit()
 
-		if not browser.find_elements_by_id("m714e5172-tb"):
+		if not browser.find_elements(By.ID, "m714e5172-tb"):
 			tasks = maximo.getAllRecordsFromTable()
 
 			logger.error("Found {n_tasks} tasks in total. The script, as of now, only accepts changes with a single task. Skipping...\n".format(n_tasks=len(tasks)))
@@ -204,7 +204,7 @@ def downloadRestoreTemplate(CHANGE_NUM):
 		maximo.getNamedLabel("Attachments").click()
 		maximo.waitUntilReady()
 		
-		attachments = browser.find_elements_by_css_selector("[id^='mcaebe976_tdrow_[C:0]_ttxt-lb[R:']")
+		attachments = browser.find_elements(By.CSS_SELECTOR, ("[id^='mcaebe976_tdrow_[C:0]_ttxt-lb[R:']")
 		files_count = len(attachments)
 
 		logger.info(f"Found {files_count} attachments")

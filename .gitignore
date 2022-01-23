@@ -11,3 +11,9 @@ dist/changes.txt
 src/updateutils/__pycache__/updateUtils.cpython-38.pyc
 
 *.spec
+
+
+# From https://pipenv-fork.readthedocs.io/en/latest/basics.html
+# Generally, keep both Pipfile and Pipfile.lock in version control.
+# Do not keep Pipfile.lock in version control if multiple versions of Python are being targeted.
+Pipfile.lock

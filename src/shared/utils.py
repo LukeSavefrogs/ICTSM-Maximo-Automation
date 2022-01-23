@@ -4,7 +4,7 @@ import json
 
 import logging
 
-from deprecated import deprecated
+# from deprecated import deprecated
 
 from shared.cache import Cache
 
@@ -191,8 +191,10 @@ def get_entry_point_dir():
 	return os.path.dirname(get_entry_point())
 
 
-@deprecated("This function should not be used. Use `get_entry_point()` or `get_entry_point_dir()` instead...")
+# @deprecated()
 def getEntryPoint():
+	raise Exception("This function should not be used. Use `get_entry_point()` or `get_entry_point_dir()` instead...")
+	
 	is_executable = getattr(sys, 'frozen', False)
 	
 	if is_executable:

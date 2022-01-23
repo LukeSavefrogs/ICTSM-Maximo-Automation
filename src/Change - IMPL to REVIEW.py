@@ -4,14 +4,14 @@ from updateutils import checkUpdated
 import change
 
 # Import logging modules
-import logging, coloredlogs
+import logging
+# import coloredlogs
 
 from shared.utils import get_entry_point, get_entry_point_dir
 
 # pyinstaller --noconfirm --log-level=WARN --onefile --specpath=./build_spec --add-data=../src/Change - IMPL to REVIEW.version;. ./src/Change - IMPL to REVIEW.py 
 
-
-
+from rich.logging import RichHandler
 
 # From: http://patorjk.com/software/taag/#p=display&h=0&v=3&f=3D-ASCII&t=Lista%20Change
 ASCII_ART = r"""
@@ -92,11 +92,16 @@ if __name__ == "__main__":
 	logger_fileHandler.setLevel(logging.INFO)
 
 	# Add handlers to the logger
-	logger.addHandler(logger_fileHandler)	
+	# logger.addHandler(logger_fileHandler)
+	# console.print("TEST")
+	logger.addHandler(RichHandler(omit_repeated_times=False, rich_tracebacks=True))
+	logger.setLevel(log_level)
+	logger_mgc.addHandler(RichHandler(level="INFO", omit_repeated_times=False, rich_tracebacks=True))
+	logger_mgc.setLevel(log_level)
 	
 	# Installs the loggers
-	coloredlogs.install(level=log_level, logger=logger, fmt=log_format)
-	coloredlogs.install(level=log_level, logger=logger_mgc, fmt=log_format)
+	# coloredlogs.install(level=log_level, logger=logger, fmt=log_format)
+	# coloredlogs.install(level=log_level, logger=logger_mgc, fmt=log_format)
 
 
 	checkUpdated(__file__)

@@ -2,11 +2,20 @@ import subprocess
 import re
 import os
 import logging
-import sys
-import coloredlogs
+
+import argparse
+
+from rich.logging import RichHandler
+
+logging.basicConfig(
+    level="INFO",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(omit_repeated_times=False, rich_tracebacks=True)]
+)
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level="INFO", logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
+# coloredlogs.install(level="INFO", logger=logger, fmt='[%(asctime)s] %(levelname)-8s - %(message)s')
 
 
 # ---------------------------------------------------------------------------------
@@ -119,15 +128,16 @@ def updateVersions (fileName):
 
 # ---------------------------------------------------------------------------------
 
-def compileScript(fileName):
+def compileScript(fileName, force_compile=False):
 	logging.info(f"Inizio compilazione del file: {fileName}")
 
-	if checkVersions (fileName): 
+	if force_compile or checkVersions(fileName): 
 		command = [
 			"pyinstaller",
 			"--noconfirm",
 			"--log-level=WARN",
 			"--onefile",
+			"--clean",
 			# "--debug=all",
 			"--specpath=./build_spec",
 			f"--add-data=../src/{fileName}.version;.",
@@ -152,8 +162,14 @@ def compileScript(fileName):
 
 
 if __name__ == "__main__":
-	logging.getLogger(__name__)
-	logging.basicConfig(level=logging.INFO, format="[%(asctime)s] - %(levelname)s - %(message)s")
+	parser = argparse.ArgumentParser(description='Gestisce la compilazione dei programmi da ".py" a ".exe".')
+	parser.add_argument("source_files", nargs="*", default=["Change - Close all REVIEW", "Change - IMPL to REVIEW", "Change - Get all OPEN"],
+						help='Nome del file da compilare')
+	parser.add_argument('-f', '--force', dest='force_compile', action='store_true',
+						help="Forza la compilazione anche a fronte di versioni uguali.")
+
+	args = parser.parse_args()
+
 
 	print(
 		"""
@@ -183,10 +199,4 @@ C:::::C              o::::o     o::::om::::m   m::::m   m::::m p:::::p     p::::
 """
 	)
 
-	cli_args = sys.argv[1:]
-	if cli_args: 
-		for file in cli_args: compileScript(file)
-	else:
-		print("Automatic Compile\n")
-		for file in ["Change - Close all REVIEW", "Change - IMPL to REVIEW", "Change - Get all OPEN"]:
-			compileScript(file)
+	for file in args.source_files: compileScript(file, force_compile=args.force_compile)
