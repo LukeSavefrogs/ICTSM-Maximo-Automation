@@ -4,10 +4,11 @@ from updateutils import checkUpdated
 import change
 
 # Import logging modules
-import logging, coloredlogs
+import logging #, coloredlogs
 
 from shared.utils import get_entry_point, get_entry_point_dir
 
+from rich.logging import RichHandler
 
 if __name__ == "__main__":
 	# Gets the full path to both the executable/script and its parent directory
@@ -44,9 +45,13 @@ if __name__ == "__main__":
 	logger.addHandler(logger_fileHandler)	
 	
 	# Installs the loggers
-	coloredlogs.install(level=log_level, logger=logger, fmt=log_format)
-	coloredlogs.install(level=log_level, logger=logger_mgc, fmt=log_format)
-
+	# coloredlogs.install(level=log_level, logger=logger, fmt=log_format)
+	# coloredlogs.install(level=log_level, logger=logger_mgc, fmt=log_format)
+	logger.addHandler(RichHandler(level=log_level, omit_repeated_times=False, rich_tracebacks=True))
+	logger.setLevel(log_level)
+	logger_mgc.addHandler(RichHandler(level=log_level, omit_repeated_times=False, rich_tracebacks=True))
+	logger_mgc.setLevel(log_level)
+	
 
 
 	checkUpdated(__file__)

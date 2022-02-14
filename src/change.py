@@ -897,7 +897,7 @@ def closeAllReview(verbose=False, show_browser=False):
 		maximo.logout()
 	
 	except Exception as e:
-		logger.critical("Generic error during the script execution..." + str(e))
+		logger.critical("Generic error during the script execution...")
 		logger.exception(e)
 
 		# logger_mgc.debug("Starting Python debugger...")
@@ -907,11 +907,11 @@ def closeAllReview(verbose=False, show_browser=False):
 		logger.critical(f"Couldn't login... Check the credentials stored in file `maximo_credentials.json`! {str(e)}")
 
 	finally:
-		print(
-			"\n----------------------------------------------------------------------\n" +
-			f"Sono stati portati in CLOSE {change_closed}/{len(CHANGES)} change".center(70) + 
-			"\n----------------------------------------------------------------------\n"
-		)
+		rich.print(rich.panel.Panel(rich.align.Align(f"Sono stati portati in CLOSE {change_closed}/{len(CHANGES)} change", align="center"), title="Risultati", padding=2))
+		
+		print()
+
+		if maximo.debug: input ("Premi INVIO per continuare")
 
 
 		# Per evitare che se il programma dumpa troppo presto cerca di chiudere un oggetto non ancora instanziato

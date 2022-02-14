@@ -92,11 +92,11 @@ if __name__ == "__main__":
 	logger_fileHandler.setLevel(logging.INFO)
 
 	# Add handlers to the logger
-	# logger.addHandler(logger_fileHandler)
-	# console.print("TEST")
-	logger.addHandler(RichHandler(omit_repeated_times=False, rich_tracebacks=True))
+	logger.addHandler(logger_fileHandler)
+
+	logger.addHandler(RichHandler(level=log_level, omit_repeated_times=False, rich_tracebacks=True))
 	logger.setLevel(log_level)
-	logger_mgc.addHandler(RichHandler(level="INFO", omit_repeated_times=False, rich_tracebacks=True))
+	logger_mgc.addHandler(RichHandler(level=log_level, omit_repeated_times=False, rich_tracebacks=True))
 	logger_mgc.setLevel(log_level)
 	
 	# Installs the loggers
